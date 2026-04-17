@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Software Quality Scorecard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f1f3f5;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border: rgba(0,0,0,0.10);
+    --border-md: rgba(0,0,0,0.18);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --amber: #854F0B;
+    --amber-light: #FAEEDA;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --gray: #5F5E5A;
+    --s1: #E24B4A;
+    --s2: #EF9F27;
+    --s3: #639922;
+    --s4: #378ADD;
+    --s5: #888780;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #242424;
+      --bg-tertiary: #2e2e2e;
+      --text-primary: #f0f0f0;
+      --text-secondary: #9ca3af;
+      --border: rgba(255,255,255,0.10);
+      --border-md: rgba(255,255,255,0.18);
+      --blue-light: #0c2a4a;
+      --green-light: #1a2e0a;
+      --amber-light: #2e1e06;
+      --red-light: #2e1010;
+    }
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    min-height: 100vh;
+  }
+
+  .app-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .app-title { font-size: 20px; font-weight: 600; }
+  .app-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-red   { background: var(--red-light);   color: var(--red); }
+  .badge-blue  { background: var(--blue-light);  color: var(--blue); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; background: var(--bg-secondary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 4px; margin-bottom: 20px; overflow-x: auto; }
+  .tab { flex-shrink: 0; padding: 7px 14px; cursor: pointer; border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); background: transparent; border: none; transition: background .15s, color .15s; white-space: nowrap; }
+  .tab:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+  .tab.active { background: var(--bg-primary); color: var(--text-primary); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Layout */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  @media (max-width: 640px) {
+    .grid-2, .grid-3, .grid-5 { grid-template-columns: 1fr; }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .metric-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    text-align: center;
+  }
+  .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .metric-val { font-size: 24px; font-weight: 600; }
+
+  /* Form */
+  label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; margin-top: 12px; }
+  label:first-child { margin-top: 0; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: 7px 10px;
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue); }
+
+  /* Buttons */
+  .btn {
+    padding: 8px 16px; border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-md); background: transparent;
+    color: var(--text-primary); cursor: pointer; font-size: 13px;
+    transition: background .15s;
+  }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 500; }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: var(--red-light); }
+
+  .section-title {
+    font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .06em;
+    margin: 20px 0 12px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--border); text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+
+  /* Score ring */
+  .score-ring {
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    width: 120px; height: 120px; border-radius: 50%; border: 5px solid var(--blue);
+    margin: 0 auto 14px;
+  }
+  .score-num { font-size: 36px; font-weight: 700; line-height: 1; }
+  .score-grade { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* Weights */
+  .weight-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .weight-name { font-size: 13px; flex: 1; }
+  .weight-input { width: 70px !important; }
+
+  /* History */
+  .history-row {
+    display: grid;
+    grid-template-columns: 140px 56px repeat(5, 44px) 56px 60px 72px;
+    gap: 4px; align-items: center;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 12px;
+  }
+  .history-row.history-header { font-weight: 600; font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+  @media (max-width: 760px) {
+    .history-row { grid-template-columns: 1fr repeat(5, 36px) 44px 52px 60px; gap: 3px; font-size: 11px; }
+  }
+
+  .flex-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .flex { display: flex; align-items: center; gap: 8px; }
+  .info { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+  .sev-s1 { color: var(--s1); font-weight: 500; }
+  .sev-s2 { color: var(--s2); font-weight: 500; }
+  .sev-s3 { color: var(--s3); font-weight: 500; }
+  .sev-s4 { color: var(--s4); font-weight: 500; }
+  .sev-s5 { color: var(--s5); font-weight: 500; }
+
+  .trend-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--text-secondary); }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .msg { font-size: 12px; color: var(--text-secondary); margin-top: 8px; min-height: 18px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  /* Calculation log */
+  .log-section { margin-bottom: 20px; }
+  .log-section-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .log-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .log-block { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; }
+  .log-block-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; cursor: pointer; gap: 12px; }
+  .log-block-header:hover { background: var(--bg-secondary); }
+  .log-block-title { font-size: 13px; font-weight: 500; flex: 1; }
+  .log-block-result { font-size: 13px; font-weight: 600; font-family: var(--font-mono); white-space: nowrap; }
+  .log-block-score { font-size: 12px; padding: 2px 8px; border-radius: var(--radius-md); margin-left: 8px; font-weight: 600; }
+  .log-block-body { padding: 0 14px 14px; border-top: 0.5px solid var(--border); display: none; }
+  .log-block.open .log-block-body { display: block; }
+  .log-chevron { font-size: 10px; color: var(--text-secondary); transition: transform .2s; }
+  .log-block.open .log-chevron { transform: rotate(180deg); }
+  .log-formula { font-family: var(--font-mono); font-size: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px 12px; margin: 10px 0 6px; line-height: 1.8; color: var(--text-primary); }
+  .log-formula .f-label { color: var(--text-secondary); font-size: 11px; display: block; margin-bottom: 2px; }
+  .log-formula .f-eq { color: var(--blue); }
+  .log-formula .f-val { font-weight: 600; }
+  .log-formula .f-good { color: var(--green); font-weight: 600; }
+  .log-formula .f-warn { color: var(--amber); font-weight: 600; }
+  .log-formula .f-bad  { color: var(--red);   font-weight: 600; }
+  .log-note { font-size: 11px; color: var(--text-secondary); margin-top: 6px; line-height: 1.6; }
+  .log-bar-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .log-bar-track { flex: 1; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+  .log-bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+  .log-bar-label { font-size: 12px; font-weight: 600; min-width: 36px; text-align: right; }
+  .log-final { background: var(--blue-light); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; margin-top: 4px; }
+  .log-final-score { font-size: 48px; font-weight: 700; color: var(--blue); line-height: 1; }
+  .log-final-grade { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+  .log-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  @media (max-width: 540px) { .log-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+
+<h2 class="sr-only">Software Quality Scorecard — sprint data entry, metrics, composite score, and trend analysis</h2>
+
+<div class="app-header">
+  <div>
+    <div class="app-title">Software quality scorecard</div>
+    <div class="app-subtitle">Sprint-level defect tracking and composite quality scoring</div>
+  </div>
+  <div id="sprint-badge" class="badge badge-blue">No sprints yet</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('entry')">Data entry</button>
+  <button class="tab" onclick="switchTab('scorecard')">Scorecard</button>
+  <button class="tab" onclick="switchTab('weights')">Weights</button>
+  <button class="tab" onclick="switchTab('export')">Export</button>
+  <button class="tab" onclick="switchTab('logs')">Calculation log</button>
+</div>
+
+<!-- DATA ENTRY -->
+<div id="tab-entry" class="panel active">
+  <div class="grid-2" style="gap:20px">
+    <div>
+      <div class="section-title">Sprint info</div>
+      <div class="card">
+        <label>Sprint / Release</label>
+        <input type="text" id="sprint-name" placeholder="e.g. Sprint 42 or v2.1.0" oninput="renderLiveScore()">
+        <label>Story points completed</label>
+        <input type="number" id="sp" placeholder="0" min="0" oninput="renderLiveScore()">
+        <label>Reopened defects</label>
+        <input type="number" id="reopened" placeholder="0" min="0" oninput="renderLiveScore()">
+        <label>Closed defects</label>
+        <input type="number" id="closed" placeholder="0" min="0" oninput="renderLiveScore()">
+        <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Escaped defects by severity</div>
+          <div class="grid-2" style="gap:8px">
+            <div><label class="sev-s1" style="margin-top:0">S1 – Showstoppers escaped</label><input type="number" id="es1" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+            <div><label class="sev-s2" style="margin-top:0">S2 – Critical escaped</label><input type="number" id="es2" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+            <div><label class="sev-s3" style="margin-top:0">S3 – Major escaped</label><input type="number" id="es3" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+            <div><label class="sev-s4" style="margin-top:0">S4 – Medium escaped</label><input type="number" id="es4" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+            <div><label class="sev-s5" style="margin-top:0">S5 – Minor escaped</label><input type="number" id="es5" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Defects by severity</div>
+      <div class="card">
+        <div class="grid-2">
+          <div><label class="sev-s1">S1 – Showstopper defects</label><input type="number" id="s1" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s1">S1 – Avg resolution (days)</label><input type="number" id="rt1" placeholder="0" min="0" step="0.1" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s2">S2 – Critical defects</label><input type="number" id="s2" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s2">S2 – Avg resolution (days)</label><input type="number" id="rt2" placeholder="0" min="0" step="0.1" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s3">S3 – Major defects</label><input type="number" id="s3" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s3">S3 – Avg resolution (days)</label><input type="number" id="rt3" placeholder="0" min="0" step="0.1" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s4">S4 – Medium defects</label><input type="number" id="s4" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s4">S4 – Avg resolution (days)</label><input type="number" id="rt4" placeholder="0" min="0" step="0.1" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s5">S5 – Minor defects</label><input type="number" id="s5" placeholder="0" min="0" oninput="renderLiveScore()"></div>
+          <div><label class="sev-s5">S5 – Avg resolution (days)</label><input type="number" id="rt5" placeholder="0" min="0" step="0.1" oninput="renderLiveScore()"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex-end">
+    <button class="btn" onclick="clearForm()">Clear</button>
+    <button class="btn btn-primary" onclick="addSprint()">Save sprint</button>
+  </div>
+  <div id="entry-msg" class="msg"></div>
+
+  <div class="divider"></div>
+
+  <!-- LIVE SCORECARD PREVIEW -->
+  <div class="section-title">Live scorecard preview</div>
+  <div id="live-score-empty" style="color:var(--text-secondary);font-size:13px;padding:4px 0 12px">Fill in the fields above to see a live score preview.</div>
+  <div id="live-score-content" style="display:none">
+    <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;margin-bottom:14px;font-size:11px">
+      <span style="font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Benchmarks — </span>
+      <span style="color:var(--text-secondary)">Defect density: elite &lt;0.1/SP, good &lt;0.25/SP · Escape rate: elite &lt;2%, good &lt;5% · Reopen rate: good &lt;15% · S1 showstoppers: ideally 0/sprint · Resolution: elite &lt;1 day</span>
+    </div>
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric-card"><div class="metric-label">Total defects</div><div class="metric-val" id="lv-total">—</div></div>
+      <div class="metric-card"><div class="metric-label">Defect density (per SP)</div><div class="metric-val" id="lv-dd">—</div></div>
+      <div class="metric-card"><div class="metric-label">Weighted escape impact</div><div class="metric-val" id="lv-er">—</div></div>
+      <div class="metric-card"><div class="metric-label">Reopen rate</div><div class="metric-val" id="lv-rr">—</div></div>
+      <div class="metric-card"><div class="metric-label">S1 Showstopper rate (per SP)</div><div class="metric-val" id="lv-s1r">—</div></div>
+      <div class="metric-card"><div class="metric-label">Avg resolution (days)</div><div class="metric-val" id="lv-rt">—</div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+        <div style="text-align:center;flex-shrink:0">
+          <div class="score-ring" id="lv-score-ring">
+            <div class="score-num" id="lv-score-num">—</div>
+            <div class="score-grade" id="lv-score-grade">—</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary)">Composite score</div>
+        </div>
+        <div style="flex:1;min-width:260px;overflow-x:auto">
+          <table><thead><tr><th>Metric</th><th>Raw value</th><th>Score (0–100)</th><th>Weight</th><th>Contribution</th></tr></thead>
+          <tbody id="lv-score-breakdown"></tbody></table>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+        <div class="section-title" style="margin-top:0;margin-bottom:8px">Per-severity breakdown</div>
+        <div style="overflow-x:auto">
+          <table><thead><tr>
+            <th>Severity</th><th>Count</th><th>% of total</th><th>Avg resolution (days)</th><th>SLA target (days)</th><th>SLA status</th>
+          </tr></thead><tbody id="lv-sev-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- HISTORY (inline under Data Entry) -->
+  <div class="section-title">Sprint history</div>
+  <div id="history-empty" style="color:var(--text-secondary);font-size:13px;padding:8px 0 16px">No sprint data yet.</div>
+  <div id="history-content" style="display:none">
+    <div style="overflow-x:auto">
+      <div class="history-row history-header">
+        <span>Sprint</span><span>SP</span><span class="sev-s1">S1</span><span class="sev-s2">S2</span><span class="sev-s3">S3</span><span class="sev-s4">S4</span><span class="sev-s5">S5</span><span>Escaped</span><span>Reopen%</span><span>Score</span>
+      </div>
+      <div id="history-rows"></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-danger" onclick="clearHistory()">Clear all history</button></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- TRENDS (inline under Data Entry) -->
+  <div class="section-title">Trends</div>
+  <div id="trends-empty" style="color:var(--text-secondary);font-size:13px;padding:8px 0 16px">Need at least 2 sprints to show trends.</div>
+  <div id="trends-content" style="display:none">
+    <div class="trend-legend" id="trend-legend"></div>
+    <div style="position:relative;width:100%;height:340px">
+      <canvas id="trend-chart" role="img" aria-label="Trend chart of quality metrics over sprints">Quality metrics over time</canvas>
+    </div>
+  </div>
+</div>
+
+<!-- SCORECARD -->
+<div id="tab-scorecard" class="panel">
+  <div id="scorecard-empty" style="color:var(--text-secondary);font-size:13px;padding:20px 0">No sprint data yet — enter a sprint on the Data entry tab.</div>
+  <div id="scorecard-content" style="display:none">
+    <div class="section-title">Sprint selector</div>
+    <select id="sc-sprint-select" onchange="renderScorecard()" style="max-width:280px;margin-bottom:20px"></select>
+    <div class="grid-3" style="margin-bottom:20px">
+      <div class="metric-card"><div class="metric-label">Story points</div><div class="metric-val" id="sc-sp">—</div></div>
+      <div class="metric-card"><div class="metric-label">Total defects</div><div class="metric-val" id="sc-total">—</div></div>
+      <div class="metric-card"><div class="metric-label">Escaped defects</div><div class="metric-val" id="sc-esc">—</div></div>
+      <div class="metric-card"><div class="metric-label">Weighted escape impact</div><div class="metric-val" id="sc-wei">—</div></div>
+      <div class="metric-card"><div class="metric-label">Defect density (per SP)</div><div class="metric-val" id="sc-dd">—</div></div>
+      <div class="metric-card"><div class="metric-label">Reopen rate</div><div class="metric-val" id="sc-rr">—</div></div>
+      <div class="metric-card"><div class="metric-label">Escape rate</div><div class="metric-val" id="sc-er">—</div></div>
+    </div>
+    <div class="section-title">Per-severity breakdown</div>
+    <div class="card" style="margin-bottom:20px;overflow-x:auto">
+      <table><thead><tr>
+        <th>Severity</th><th>Count</th><th>% of total</th><th>Avg resolution (days)</th><th>SLA target (days)</th><th>SLA status</th>
+      </tr></thead><tbody id="sev-table-body"></tbody></table>
+    </div>
+    <div class="section-title">Composite quality score</div>
+    <div class="card" style="margin-bottom:16px;background:var(--bg-secondary);border:none">
+      <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Industry benchmarks (agile teams)</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:11px">
+        <div><div style="color:var(--text-secondary);margin-bottom:2px">Defect density</div><div style="font-weight:500">Elite: &lt;0.1/SP<br>Good: &lt;0.25/SP<br>Poor: &gt;0.5/SP</div></div>
+        <div><div style="color:var(--text-secondary);margin-bottom:2px">Escape rate</div><div style="font-weight:500">Elite: &lt;2%<br>Good: &lt;5%<br>Poor: &gt;10%</div></div>
+        <div><div style="color:var(--text-secondary);margin-bottom:2px">Reopen rate</div><div style="font-weight:500">Elite: &lt;5%<br>Good: &lt;15%<br>Poor: &gt;30%</div></div>
+        <div><div style="color:var(--text-secondary);margin-bottom:2px">S1 showstoppers</div><div style="font-weight:500">Elite: 0/sprint<br>Good: &lt;0.02/SP<br>Poor: &gt;0.05/SP</div></div>
+        <div><div style="color:var(--text-secondary);margin-bottom:2px">Avg resolution</div><div style="font-weight:500">Elite: &lt;1 day<br>Good: &lt;4 days<br>Poor: &gt;10 days</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="grid-2" style="align-items:center">
+        <div style="text-align:center">
+          <div class="score-ring" id="score-ring">
+            <div class="score-num" id="score-num">—</div>
+            <div class="score-grade" id="score-grade">—</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary)">Composite score (0–100) · Excellent ≥75 · Good ≥50 · Moderate ≥25 · Poor &lt;25</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table><thead><tr><th>Metric</th><th>Raw</th><th>Score (0–100)</th><th>Weight</th><th>Contribution</th></tr></thead>
+          <tbody id="score-breakdown"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WEIGHTS -->
+<div id="tab-weights" class="panel">
+  <div class="section-title">Composite score weights</div>
+  <div class="card" style="max-width:560px">
+    <div class="info" style="margin-bottom:16px">
+      The composite score is a blend of two groups: the <strong>5 primary metrics</strong> (weighted by %) and the <strong>severity group</strong> (weighted by pts within its group). The <strong>severity influence</strong> % controls how much the severity group pulls on the final score vs the 5 metrics.
+    </div>
+
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">5 primary metrics (% weights — must total 100%)</div>
+    <div id="weight-rows"></div>
+    <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--text-secondary)">Total</span>
+      <span id="weight-total" style="font-size:13px;font-weight:600">100%</span>
+    </div>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Severity group influence on final score</div>
+      <div class="weight-row">
+        <span class="weight-name">Severity influence</span>
+        <input type="number" class="weight-input" id="w-sevInfluence" min="0" max="100" onchange="updateWeight('sevInfluence',this.value)">
+        <span style="font-size:12px;color:var(--text-secondary);min-width:20px">%</span>
+      </div>
+      <div class="info" style="margin-top:4px">Final score = (primary metrics × <span id="w-primary-pct">75</span>%) + (severity group × <span id="w-sev-pct">25</span>%)</div>
+    </div>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Severity defect weights (relative pts within severity group)</div>
+      <div id="weight-sev-rows"></div>
+    </div>
+
+    <div class="flex-end" style="margin-top:12px"><button class="btn" onclick="resetWeights()">Reset defaults</button></div>
+  </div>
+  <div class="section-title" style="margin-top:24px">Tier thresholds</div>
+  <div class="card" style="max-width:700px">
+    <div class="info" style="margin-bottom:16px">
+      Each metric is scored by comparing its value against four named tiers.
+      The three threshold columns are the <strong>upper bounds</strong> for Excellent, Good, and Moderate — values above Moderate fall into Poor.
+      Scores map linearly: Excellent = 100–75 · Good = 75–50 · Moderate = 50–25 · Poor = 25–0.<br>
+      <span style="margin-top:6px;display:block">Severity rows use <strong>defects/SP</strong> — the defect count for that severity divided by story points completed. For example, 9 S3 defects in a 247 SP sprint = 0.036 defects/SP.</span>
+    </div>
+    <table style="font-size:12px;width:100%">
+      <thead><tr>
+        <th style="min-width:170px">Metric</th>
+        <th style="text-align:center"><span style="color:var(--green)">Excellent</span><br><span style="font-size:10px;color:var(--text-secondary);font-weight:400">≤ this value</span></th>
+        <th style="text-align:center"><span style="color:var(--blue)">Good</span><br><span style="font-size:10px;color:var(--text-secondary);font-weight:400">≤ this value</span></th>
+        <th style="text-align:center"><span style="color:var(--amber)">Moderate</span><br><span style="font-size:10px;color:var(--text-secondary);font-weight:400">≤ this value</span></th>
+        <th style="text-align:center"><span style="color:var(--red)">Poor</span><br><span style="font-size:10px;color:var(--text-secondary);font-weight:400">&gt; Moderate</span></th>
+        <th style="min-width:50px;text-align:right;padding-right:4px">Unit</th>
+      </tr></thead>
+      <tbody id="tier-rows"></tbody>
+    </table>
+    <div class="flex-end" style="margin-top:12px">
+      <button class="btn" onclick="resetTiers()">Reset defaults</button>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:24px">SLA targets (days)</div>
+  <div class="card" style="max-width:500px">
+    <div class="info" style="margin-bottom:12px">Resolution time targets per severity used for SLA compliance in the scorecard.</div>
+    <div class="grid-5">
+      <div><label class="sev-s1">S1 Showstopper (days)</label><input type="number" id="sla1" value="0.5" min="0.1" step="0.1" onchange="saveSLAs()"></div>
+      <div><label class="sev-s2">S2 Critical (days)</label><input type="number" id="sla2" value="1" min="0.1" step="0.1" onchange="saveSLAs()"></div>
+      <div><label class="sev-s3">S3 Major (days)</label><input type="number" id="sla3" value="3" min="0.1" step="0.1" onchange="saveSLAs()"></div>
+      <div><label class="sev-s4">S4 Medium (days)</label><input type="number" id="sla4" value="7" min="0.1" step="0.1" onchange="saveSLAs()"></div>
+      <div><label class="sev-s5">S5 Minor (days)</label><input type="number" id="sla5" value="14" min="0.1" step="0.1" onchange="saveSLAs()"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div id="tab-export" class="panel">
+  <div class="section-title">Export options</div>
+  <div class="grid-3" style="gap:16px">
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:8px">CSV export</div>
+      <div class="info" style="margin-bottom:14px">Download all sprint history as a comma-separated file, compatible with Excel, Google Sheets, and BI tools.</div>
+      <button class="btn btn-primary" onclick="exportCSV()">Download CSV</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:8px">Excel export</div>
+      <div class="info" style="margin-bottom:14px">Download a formatted .xls file with sprint data and metric calculations pre-populated.</div>
+      <button class="btn btn-primary" onclick="exportExcel()">Download XLSX</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:8px">Shareable HTML</div>
+      <div class="info" style="margin-bottom:14px">Export a standalone HTML report with scorecard, history table, and composite scores — no server needed.</div>
+      <button class="btn btn-primary" onclick="exportHTMLReport()">Download HTML report</button>
+    </div>
+  </div>
+  <div class="section-title" style="margin-top:24px">Preview</div>
+  <div class="card">
+    <div id="export-preview" style="font-size:12px;color:var(--text-secondary)">Save at least one sprint to preview export content.</div>
+  </div>
+</div>
+<!-- LOGS -->
+<div id="tab-logs" class="panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:13px;color:var(--text-secondary)">Step-by-step breakdown of every calculation for the selected sprint.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="log-sprint-select" onchange="renderLogs()" style="max-width:220px"></select>
+      <button class="btn" onclick="copyLog()">Copy log</button>
+    </div>
+  </div>
+  <div id="logs-empty" style="color:var(--text-secondary);font-size:13px;padding:20px 0">No sprint data yet — save a sprint on the Data entry tab.</div>
+  <div id="logs-content" style="display:none">
+    <div id="log-body"></div>
+  </div>
+</div>
+
+</div><!-- /app-wrapper -->
+
+<script>
+const STORAGE_KEY = 'sqsc_sprints_v2';
+const WEIGHTS_KEY = 'sqsc_weights_v6';
+const SLA_KEY = 'sqsc_slas_v4';
+const TIERS_KEY = 'sqsc_tiers_v2';
+
+// Tier thresholds per metric — values at which each tier boundary sits.
+// Score mapping: Excellent=100→75, Good=75→50, Moderate=50→25, Poor=25→0
+// e.g. defect density: ≤0.10/SP → Excellent, ≤0.25 → Good, ≤0.50 → Moderate, >0.50 → Poor
+// All thresholds are upper bounds for that tier (lower is better for all metrics).
+const DEFAULT_TIERS = {
+  dd:    { excellent:0.10, good:0.25, moderate:0.50 },  // defects/SP
+  er:    { excellent:0.01, good:0.03, moderate:0.05 },  // escape rate 0–1
+  rr:    { excellent:0.05, good:0.15, moderate:0.30 },  // reopen rate 0–1
+  s1r:   { excellent:0.00, good:0.00, moderate:0.00 },  // S1s per SP
+  rt:    { excellent:1.0,  good:4.0,  moderate:10.0 },  // avg resolution days
+  sevS1: { excellent:0.00, good:0.00, moderate:0.00 },  // S1/SP
+  sevS2: { excellent:0.00, good:0.02, moderate:0.05 },  // S2/SP
+  sevS3: { excellent:0.05, good:0.10, moderate:0.20 },  // S3/SP
+  sevS4: { excellent:0.30, good:0.40, moderate:0.50 },  // S4/SP
+  sevS5: { excellent:0.40, good:0.50, moderate:1.00 }   // S5/SP
+};
+
+const DEFAULT_WEIGHTS = { defectDensity:20, escapeRate:20, reopenRate:20, s1Rate:20, resTime:20, sevInfluence:50, sevS1:10, sevS2:7, sevS3:4, sevS4:2, sevS5:1 };
+const DEFAULT_SLAS = [0.5, 1, 3, 7, 14];
+const METRIC_LABELS = { defectDensity:'Defect density', escapeRate:'Escape rate', reopenRate:'Reopen rate', s1Rate:'S1 Showstopper rate', resTime:'Avg resolution time (days)', sevS1:'S1 Showstopper weight', sevS2:'S2 Critical weight', sevS3:'S3 Major weight', sevS4:'S4 Medium weight', sevS5:'S5 Minor weight' };
+const SEV_LABELS = ['S1 – Showstopper','S2 – Critical','S3 – Major','S4 – Medium','S5 – Minor'];
+const SEV_KEYS = ['s1','s2','s3','s4','s5'];
+const SEV_COLORS = ['#E24B4A','#EF9F27','#639922','#378ADD','#888780'];
+
+let sprints=[], weights={...DEFAULT_WEIGHTS}, slas=[...DEFAULT_SLAS], tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)), trendChart=null;
+
+function load() {
+  try { sprints=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]') } catch(e){sprints=[]}
+  try { weights={...DEFAULT_WEIGHTS,...JSON.parse(localStorage.getItem(WEIGHTS_KEY)||'{}')} } catch(e){weights={...DEFAULT_WEIGHTS}}
+  try { slas=JSON.parse(localStorage.getItem(SLA_KEY)||JSON.stringify(DEFAULT_SLAS)) } catch(e){slas=[...DEFAULT_SLAS]}
+  try {
+    const saved=JSON.parse(localStorage.getItem(TIERS_KEY)||'{}');
+    Object.keys(DEFAULT_TIERS).forEach(k=>{ tiers[k]={...DEFAULT_TIERS[k],...(saved[k]||{})}; });
+  } catch(e){ tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)); }
+}
+
+function save() { localStorage.setItem(STORAGE_KEY,JSON.stringify(sprints)); }
+function saveWeights() { localStorage.setItem(WEIGHTS_KEY,JSON.stringify(weights)); }
+function saveTiers() { localStorage.setItem(TIERS_KEY,JSON.stringify(tiers)); }
+function saveSLAs() {
+  slas=[1,2,3,4,5].map(i=>parseFloat(document.getElementById('sla'+i).value)||DEFAULT_SLAS[i-1]);
+  localStorage.setItem(SLA_KEY,JSON.stringify(slas));
+  updateAll();
+}
+
+function g(id){return parseFloat(document.getElementById(id).value)||0;}
+function gs(id){return document.getElementById(id).value.trim();}
+function totalDefects(s){return(s.s1||0)+(s.s2||0)+(s.s3||0)+(s.s4||0)+(s.s5||0);}
+
+// Tier scoring: linear interpolation between 4 named bands.
+// Excellent (100–75), Good (75–50), Moderate (50–25), Poor (25–0)
+// t = { excellent, good, moderate } are upper-bound thresholds (lower value = better).
+function tierScore(value, t) {
+  // Guard: clamp value to 0 minimum, handle edge case where excellent = 0
+  value = Math.max(0, value);
+  if (value === 0) return 100; // zero defects/rate always scores perfectly
+  if (t.excellent === 0) {
+    // No excellent band — jump straight to Good interpolation from 0
+    if (value <= t.good) {
+      return 75 - 25 * (value / t.good);
+    } else if (value <= t.moderate) {
+      return 50 - 25 * ((value - t.good) / (t.moderate - t.good));
+    } else {
+      return Math.max(0, 25 - 25 * ((value - t.moderate) / t.moderate));
+    }
+  }
+  if (value <= t.excellent) {
+    return 100 - 25 * (value / t.excellent);
+  } else if (value <= t.good) {
+    return 75 - 25 * ((value - t.excellent) / (t.good - t.excellent));
+  } else if (value <= t.moderate) {
+    return 50 - 25 * ((value - t.good) / (t.moderate - t.good));
+  } else {
+    return Math.max(0, 25 - 25 * ((value - t.moderate) / t.moderate));
+  }
+}
+
+function tierName(value, t) {
+  if (value <= t.excellent) return 'Excellent';
+  if (value <= t.good)      return 'Good';
+  if (value <= t.moderate)  return 'Moderate';
+  return 'Poor';
+}
+
+function computeScore(s) {
+  const total = totalDefects(s), sp = s.sp || 1;
+  const closed = (s.closed || 0) + (s.reopened || 0);
+
+  // --- Raw metric values ---
+  const dd   = total / sp;
+  const rr   = closed > 0 ? (s.reopened || 0) / closed : 0;
+  const s1r  = sp > 0 ? (s.s1 || 0) / sp : 0;
+  const avgRt = total > 0
+    ? ((s.s1||0)*(s.rt1||0)+(s.s2||0)*(s.rt2||0)+(s.s3||0)*(s.rt3||0)+(s.s4||0)*(s.rt4||0)+(s.s5||0)*(s.rt5||0)) / total
+    : 0;
+
+  // Severity-weighted escape rate:
+  // Each escaped defect is weighted by its severity impact (S1=10×, S2=5×, S3=2×, S4=1×, S5=0.3×)
+  // Normalized against the total weighted defect pool so the metric stays on a 0–1 scale.
+  // Result: 1 escaped S1 counts far more than 5 escaped S5s.
+  const SEV_WEIGHTS = [10, 5, 2, 1, 0.3];
+  const escapedKeys = ['es1','es2','es3','es4','es5'];
+  const totalEscaped = escapedKeys.reduce((a,k) => a + (s[k]||0), 0);
+  const weightedEscaped = escapedKeys.reduce((a,k,i) => a + (s[k]||0)*SEV_WEIGHTS[i], 0);
+  const weightedTotal   = SEV_KEYS.reduce((a,k,i)   => a + (s[k]||0)*SEV_WEIGHTS[i], 0);
+  // er = weighted escaped impact / weighted total defect pool (0–1)
+  const er = weightedTotal > 0 ? weightedEscaped / weightedTotal : 0;
+
+  // --- Per-severity rates ---
+  const sevRates = SEV_KEYS.map(k => sp > 0 ? (s[k] || 0) / sp : 0);
+
+  // --- Tier-based scores (all read from editable tiers object) ---
+  const scores = {
+    defectDensity: tierScore(dd,    tiers.dd),
+    escapeRate:    tierScore(er,    tiers.er),
+    reopenRate:    tierScore(rr,    tiers.rr),
+    s1Rate:        tierScore(s1r,   tiers.s1r),
+    resTime:       tierScore(avgRt, tiers.rt),
+    sevS1: tierScore(sevRates[0], tiers.sevS1),
+    sevS2: tierScore(sevRates[1], tiers.sevS2),
+    sevS3: tierScore(sevRates[2], tiers.sevS3),
+    sevS4: tierScore(sevRates[3], tiers.sevS4),
+    sevS5: tierScore(sevRates[4], tiers.sevS5)
+  };
+
+  // --- Composite blending ---
+  const W = weights;
+  const compositeKeys = ['defectDensity','escapeRate','reopenRate','s1Rate','resTime'];
+  const tw = compositeKeys.reduce((a, k) => a + (W[k] || 0), 0) || 100;
+  const sevKeys = ['sevS1','sevS2','sevS3','sevS4','sevS5'];
+  const sevPtSum = sevKeys.reduce((a, k) => a + (W[k] || 0), 0) || 1;
+  const compositeScore = compositeKeys.reduce((a, k) => a + scores[k] * (W[k] || 0) / tw, 0);
+  const sevGroupScore  = sevKeys.reduce((a, k) => a + scores[k] * (W[k] || 0) / sevPtSum, 0);
+  // sevInfluence is now directly configurable (0–100%) — how much the severity group pulls on the final score
+  const sevInfluence = Math.max(0, Math.min(100, W.sevInfluence || 25));
+  const composite = (compositeScore * (100 - sevInfluence) + sevGroupScore * sevInfluence) / 100;
+
+  return { dd, er, rr, s1r, avgRt, sevRates, scores, composite, W, tw, sevPtSum, totalEscaped, weightedEscaped, weightedTotal };
+}
+
+function gradeLabel(score) {
+  if (score >= 75) return { label:'Excellent', cls:'badge-green' };
+  if (score >= 50) return { label:'Good',      cls:'badge-blue'  };
+  if (score >= 25) return { label:'Moderate',  cls:'badge-amber' };
+  return                  { label:'Poor',      cls:'badge-red'   };
+}
+
+function addSprint() {
+  const name=gs('sprint-name');
+  if(!name){document.getElementById('entry-msg').textContent='Sprint name is required.';return;}
+  const sprint={id:Date.now(),name,sp:g('sp'),s1:g('s1'),s2:g('s2'),s3:g('s3'),s4:g('s4'),s5:g('s5'),rt1:g('rt1'),rt2:g('rt2'),rt3:g('rt3'),rt4:g('rt4'),rt5:g('rt5'),reopened:g('reopened'),closed:g('closed'),es1:g('es1'),es2:g('es2'),es3:g('es3'),es4:g('es4'),es5:g('es5'),date:new Date().toISOString()};
+  sprints.push(sprint); save();
+  document.getElementById('entry-msg').textContent='Sprint "'+name+'" saved successfully.';
+  setTimeout(()=>document.getElementById('entry-msg').textContent='',3000);
+  updateAll();
+}
+
+function clearForm() {
+  ['sprint-name','sp','s1','s2','s3','s4','s5','rt1','rt2','rt3','rt4','rt5','reopened','closed','es1','es2','es3','es4','es5'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('entry-msg').textContent='';
+  document.getElementById('live-score-empty').style.display='';
+  document.getElementById('live-score-content').style.display='none';
+}
+
+function clearHistory() {
+  const btn = document.querySelector('#history-content .btn-danger');
+  if (btn && btn.dataset.confirming !== 'true') {
+    btn.dataset.confirming = 'true';
+    const orig = btn.textContent;
+    btn.textContent = 'Tap again to confirm delete';
+    btn.style.background = 'var(--red-light)';
+    setTimeout(() => {
+      btn.dataset.confirming = 'false';
+      btn.textContent = orig;
+      btn.style.background = '';
+    }, 3000);
+    return;
+  }
+  if (btn) { btn.dataset.confirming = 'false'; btn.style.background = ''; btn.textContent = 'Clear all history'; }
+  sprints = []; save(); updateAll();
+}
+
+function updateAll() {
+  updateBadge(); renderScorecard(); renderHistory(); renderTrends(); renderExportPreview();
+  if(document.getElementById('tab-logs').classList.contains('active')) renderLogs();
+}
+
+function updateBadge() {
+  const el=document.getElementById('sprint-badge');
+  el.textContent=sprints.length+' sprint'+(sprints.length!==1?'s':'');
+  el.className='badge '+(sprints.length?'badge-green':'badge-blue');
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    const tabs=['entry','scorecard','weights','export','logs'];
+    el.classList.toggle('active',tabs[i]===t);
+  });
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='entry') renderTrends();
+  if(t==='scorecard') renderScorecard();
+  if(t==='logs') renderLogs();
+}
+
+function populateSprintSelect(selId) {
+  const sel=document.getElementById(selId), prev=sel.value;
+  sel.innerHTML=sprints.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  if(prev) sel.value=prev;
+}
+
+function renderScorecard() {
+  const empty=document.getElementById('scorecard-empty'), content=document.getElementById('scorecard-content');
+  if(!sprints.length){empty.style.display='';content.style.display='none';return;}
+  empty.style.display='none';content.style.display='';
+  populateSprintSelect('sc-sprint-select');
+  const sel=document.getElementById('sc-sprint-select');
+  const s=sprints.find(x=>String(x.id)===String(sel.value))||sprints[sprints.length-1];
+  if(!s) return; sel.value=s.id;
+  const total=totalDefects(s), sp=s.sp||1, closed=(s.closed||0)+(s.reopened||0);
+  const SEV_WEIGHTS=[10,5,2,1,0.3];
+  const totalEsc=['es1','es2','es3','es4','es5'].reduce((a,k)=>a+(s[k]||0),0);
+  const weightedEsc=['es1','es2','es3','es4','es5'].reduce((a,k,i)=>a+(s[k]||0)*SEV_WEIGHTS[i],0);
+  const weightedTot=SEV_KEYS.reduce((a,k,i)=>a+(s[k]||0)*SEV_WEIGHTS[i],0);
+  document.getElementById('sc-sp').textContent=s.sp||0;
+  document.getElementById('sc-total').textContent=total;
+  document.getElementById('sc-esc').textContent=totalEsc+' ('+['es1','es2','es3','es4','es5'].map((k,i)=>s[k]?`S${i+1}:${s[k]}`:'').filter(Boolean).join(' ')+')';
+  document.getElementById('sc-wei').textContent=weightedTot>0?(weightedEsc/weightedTot*100).toFixed(1)+'%':'0%';
+  document.getElementById('sc-dd').textContent=(total/sp).toFixed(2);
+  document.getElementById('sc-rr').textContent=closed>0?((s.reopened||0)/closed*100).toFixed(1)+'%':'0%';
+  document.getElementById('sc-er').textContent=weightedTot>0?(weightedEsc/weightedTot*100).toFixed(1)+'%':'0%';
+
+  document.getElementById('sev-table-body').innerHTML=SEV_KEYS.map((k,i)=>{
+    const count=s[k]||0, pct=total>0?((count/total)*100).toFixed(1):0;
+    const rt=s['rt'+(i+1)]||0, sla=slas[i];
+    const slaBadge=rt===0?'<span class="badge badge-blue">No data</span>':rt<=sla?'<span class="badge badge-green">On SLA</span>':'<span class="badge badge-red">Breached</span>';
+    return `<tr><td><span style="color:${SEV_COLORS[i]};font-weight:600">${SEV_LABELS[i]}</span></td><td>${count}</td><td>${pct}%</td><td>${rt}</td><td>${sla}</td><td>${slaBadge}</td></tr>`;
+  }).join('');
+
+  const {dd,er,rr,s1r,avgRt,scores,composite,W,tw}=computeScore(s);
+  const c=Math.round(composite), gr=gradeLabel(c);
+  document.getElementById('score-num').textContent=c;
+  document.getElementById('score-grade').textContent=gr.label;
+  const ringColor=c>=90?'#639922':c>=75?'#378ADD':c>=60?'#EF9F27':'#E24B4A';
+  document.getElementById('score-ring').style.borderColor=ringColor;
+
+  const metrics=[
+    {k:'defectDensity',raw:(dd).toFixed(3)+' /SP'},
+    {k:'escapeRate',raw:(er*100).toFixed(1)+'%'},
+    {k:'reopenRate',raw:(rr*100).toFixed(1)+'%'},
+    {k:'s1Rate',raw:(s1r*100).toFixed(2)+'%'},
+    {k:'resTime',raw:(avgRt).toFixed(1)+' days'}
+  ];
+  const sevMetrics=[
+    {k:'sevS1',raw:(s.s1||0)+' defects',color:'var(--s1)'},
+    {k:'sevS2',raw:(s.s2||0)+' defects',color:'var(--s2)'},
+    {k:'sevS3',raw:(s.s3||0)+' defects',color:'var(--s3)'},
+    {k:'sevS4',raw:(s.s4||0)+' defects',color:'var(--s4)'},
+    {k:'sevS5',raw:(s.s5||0)+' defects',color:'var(--s5)'}
+  ];
+  const sevSeparator=`<tr><td colspan="5" style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;background:var(--bg-secondary)">Severity defect weights</td></tr>`;
+  document.getElementById('score-breakdown').innerHTML=
+    metrics.map(m=>{
+      const sc=Math.round(scores[m.k]),wt=W[m.k],contrib=(sc*wt/tw).toFixed(1);
+      const barColor=sc>=75?'#639922':sc>=50?'#EF9F27':'#E24B4A';
+      return `<tr><td>${METRIC_LABELS[m.k]}</td><td style="color:var(--text-secondary)">${m.raw}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:6px;background:var(--bg-secondary);border-radius:3px;min-width:60px">
+            <div style="width:${sc}%;height:100%;background:${barColor};border-radius:3px"></div>
+          </div><span style="min-width:28px;font-size:12px">${sc}</span></div></td>
+        <td>${wt}%</td><td style="font-weight:600">${contrib}</td></tr>`;
+    }).join('')+sevSeparator+
+    sevMetrics.map(m=>{
+      const sc=Math.round(scores[m.k]),wt=W[m.k],contrib=sc.toFixed(0);
+      const barColor=sc>=75?'#639922':sc>=50?'#EF9F27':'#E24B4A';
+      return `<tr><td style="color:${m.color};font-weight:500">${METRIC_LABELS[m.k].replace(' weight','')}</td><td style="color:var(--text-secondary)">${m.raw}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:6px;background:var(--bg-secondary);border-radius:3px;min-width:60px">
+            <div style="width:${sc}%;height:100%;background:${barColor};border-radius:3px"></div>
+          </div><span style="min-width:28px;font-size:12px">${sc}</span></div></td>
+        <td>${wt} pts</td><td style="font-weight:600">${contrib}</td></tr>`;
+    }).join('');
+}
+
+function renderHistory() {
+  const empty=document.getElementById('history-empty'), content=document.getElementById('history-content');
+  if(!sprints.length){empty.style.display='';content.style.display='none';return;}
+  empty.style.display='none';content.style.display='';
+  document.getElementById('history-rows').innerHTML=[...sprints].reverse().map(s=>{
+    const total=totalDefects(s), closed=(s.closed||0)+(s.reopened||0);
+    const rr=closed>0?((s.reopened||0)/closed*100).toFixed(0)+'%':'—';
+    const c=Math.round(computeScore(s).composite), {cls}=gradeLabel(c);
+    return `<div class="history-row" title="${new Date(s.date).toLocaleDateString()}">
+      <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
+      <span>${s.sp||0}</span><span class="sev-s1">${s.s1||0}</span><span class="sev-s2">${s.s2||0}</span>
+      <span class="sev-s3">${s.s3||0}</span><span class="sev-s4">${s.s4||0}</span><span class="sev-s5">${s.s5||0}</span>
+      <span>${['es1','es2','es3','es4','es5'].reduce((a,k)=>a+(s[k]||0),0)}</span><span>${rr}</span><span class="badge ${cls}">${c}</span></div>`;
+  }).join('');
+}
+
+function renderTrends() {
+  const empty=document.getElementById('trends-empty'), content=document.getElementById('trends-content');
+  if(sprints.length<2){empty.style.display='';content.style.display='none';return;}
+  empty.style.display='none';content.style.display='';
+  const labels=sprints.map(s=>s.name);
+  const data=sprints.map(s=>{
+    const r=computeScore(s);
+    return {composite:Math.round(r.composite),defectDensity:parseFloat(r.dd.toFixed(2)),escapeRate:parseFloat((r.er*100).toFixed(1)),reopenRate:parseFloat((r.rr*100).toFixed(1)),s1count:s.s1||0,avgRt:parseFloat(r.avgRt.toFixed(1))};
+  });
+  const datasets=[
+    {label:'Composite score',data:data.map(d=>d.composite),borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',yAxisID:'y',tension:0.3,borderWidth:2.5,pointRadius:4,fill:true},
+    {label:'Defect density',data:data.map(d=>d.defectDensity),borderColor:'#E24B4A',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,borderWidth:1.5,borderDash:[4,3],pointRadius:3},
+    {label:'Escape rate %',data:data.map(d=>d.escapeRate),borderColor:'#EF9F27',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,borderWidth:1.5,borderDash:[2,4],pointRadius:3},
+    {label:'Reopen rate %',data:data.map(d=>d.reopenRate),borderColor:'#639922',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,borderWidth:1.5,borderDash:[6,3],pointRadius:3},
+    {label:'S1 count',data:data.map(d=>d.s1count),borderColor:'#A32D2D',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,borderWidth:1.5,borderDash:[1,3],pointRadius:3},
+    {label:'Avg res. time (days)',data:data.map(d=>d.avgRt),borderColor:'#5F5E5A',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,borderWidth:1.5,borderDash:[3,3],pointRadius:3}
+  ];
+  document.getElementById('trend-legend').innerHTML=datasets.map(d=>`<span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:3px;background:${d.borderColor};display:inline-block;border-radius:2px"></span>${d.label}</span>`).join('');
+  if(trendChart){trendChart.destroy();trendChart=null;}
+  trendChart=new Chart(document.getElementById('trend-chart').getContext('2d'),{
+    type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'rgba(128,128,128,0.08)'},ticks:{color:'#888780',font:{size:11},maxRotation:30}},
+        y:{position:'left',min:0,max:100,title:{display:true,text:'Composite score',color:'#185FA5',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'},ticks:{color:'#888780',font:{size:11}}},
+        y2:{position:'right',title:{display:true,text:'Metric values',color:'#888780',font:{size:11}},grid:{display:false},ticks:{color:'#888780',font:{size:11}}}
+      },interaction:{mode:'index',intersect:false}}
+  });
+}
+
+function renderWeights() {
+  const compositeKeys=['defectDensity','escapeRate','reopenRate','s1Rate','resTime'];
+  const sevKeys=['sevS1','sevS2','sevS3','sevS4','sevS5'];
+  const sevColors=['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)'];
+  const sevNames=['S1 Showstopper','S2 Critical','S3 Major','S4 Medium','S5 Minor'];
+  document.getElementById('weight-rows').innerHTML=compositeKeys.map(k=>`
+    <div class="weight-row">
+      <span class="weight-name">${METRIC_LABELS[k]}</span>
+      <input type="number" class="weight-input" id="w-${k}" value="${weights[k]}" min="0" max="100" onchange="updateWeight('${k}',this.value)">
+      <span style="font-size:12px;color:var(--text-secondary);min-width:20px">%</span>
+    </div>`).join('');
+  const si = document.getElementById('w-sevInfluence');
+  if (si) si.value = weights.sevInfluence ?? 25;
+  document.getElementById('weight-sev-rows').innerHTML=sevKeys.map((k,i)=>`
+    <div class="weight-row">
+      <span class="weight-name" style="color:${sevColors[i]};font-weight:500">${sevNames[i]}</span>
+      <input type="number" class="weight-input" id="w-${k}" value="${weights[k]}" min="0" max="99" step="1" onchange="updateWeight('${k}',this.value)">
+      <span style="font-size:12px;color:var(--text-secondary);min-width:40px">pts</span>
+    </div>`).join('');
+  updateWeightTotal();
+}
+
+function updateWeight(k,v) {
+  weights[k]=parseFloat(v)||0; saveWeights(); updateWeightTotal(); renderScorecard();
+  if(document.getElementById('tab-logs').classList.contains('active')) renderLogs();
+}
+function updateWeightTotal() {
+  const compositeKeys=['defectDensity','escapeRate','reopenRate','s1Rate','resTime'];
+  const total=compositeKeys.reduce((a,k)=>a+(weights[k]||0),0);
+  const el=document.getElementById('weight-total');
+  el.textContent=total+'%';
+  el.style.color=total===100?'var(--green)':'var(--red)';
+  // Update the blend description
+  const si = Math.max(0,Math.min(100,weights.sevInfluence??25));
+  const pp = document.getElementById('w-primary-pct');
+  const sp = document.getElementById('w-sev-pct');
+  if(pp) pp.textContent=(100-si);
+  if(sp) sp.textContent=si;
+}
+function resetWeights() {
+  weights={...DEFAULT_WEIGHTS}; saveWeights(); renderWeights(); renderScorecard();
+}
+function resetTiers() {
+  tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)); saveTiers(); renderTiers(); updateAll();
+}
+
+const TIER_META = [
+  { key:'dd',    label:'Defect density',      unit:'defects/SP', step:0.05  },
+  { key:'er',    label:'Escape rate',          unit:'ratio',      step:0.01  },
+  { key:'rr',    label:'Reopen rate',          unit:'ratio',      step:0.05  },
+  { key:'s1r',   label:'S1 Showstopper rate',  unit:'defects/SP', step:0.01  },
+  { key:'rt',    label:'Avg resolution time',  unit:'days',       step:0.5   },
+  { key:'sevS1', label:'Sev · S1 Showstopper', unit:'defects/SP', step:0.01  },
+  { key:'sevS2', label:'Sev · S2 Critical',    unit:'defects/SP', step:0.05  },
+  { key:'sevS3', label:'Sev · S3 Major',       unit:'defects/SP', step:0.10  },
+  { key:'sevS4', label:'Sev · S4 Medium',      unit:'defects/SP', step:0.25  },
+  { key:'sevS5', label:'Sev · S5 Minor',       unit:'defects/SP', step:0.50  }
+];
+
+function renderTiers() {
+  const def = DEFAULT_TIERS;
+  document.getElementById('tier-rows').innerHTML = TIER_META.map(m => {
+    const t = tiers[m.key];
+    const d = def[m.key];
+    const changed = f => Math.abs(t[f] - d[f]) > 0.0001;
+    const inp = (field, val) =>
+      `<input type="number" value="${val}" min="0" step="${m.step}"
+        style="width:76px;text-align:center;${changed(field)?'border-color:var(--blue);':''}"
+        onchange="updateTier('${m.key}','${field}',this.value)"
+        title="Default: ${d[field]}">`;
+    // Poor column is computed, not editable — just shows "> moderate value"
+    const poorLabel = `<span style="font-size:11px;color:var(--text-secondary)">&gt; ${t.moderate}</span>`;
+    const isSev = m.key.startsWith('sev');
+    return `<tr style="${isSev?'border-top:0.5px solid var(--border)':''}">
+      <td style="padding:7px 10px 7px 0;font-size:12px;font-weight:${isSev?'400':'500'};color:${isSev?'var(--text-secondary)':'var(--text-primary)'}">${m.label}</td>
+      <td style="padding:4px 8px;text-align:center">${inp('excellent', t.excellent)}</td>
+      <td style="padding:4px 8px;text-align:center">${inp('good',      t.good)}</td>
+      <td style="padding:4px 8px;text-align:center">${inp('moderate',  t.moderate)}</td>
+      <td style="padding:4px 8px;text-align:center">${poorLabel}</td>
+      <td style="padding:4px 4px;text-align:right;font-size:11px;color:var(--text-secondary)">${m.unit}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateTier(key, field, value) {
+  const v = parseFloat(value);
+  if (isNaN(v) || v < 0) return;
+  tiers[key][field] = v;
+  saveTiers();
+  renderTiers();
+  updateAll();
+  if (document.getElementById('tab-logs').classList.contains('active')) renderLogs();
+}
+function renderSLAs() {
+  [1,2,3,4,5].forEach(i=>{const el=document.getElementById('sla'+i);if(el)el.value=slas[i-1];});
+}
+
+function renderExportPreview() {
+  const el=document.getElementById('export-preview');
+  if(!sprints.length){el.textContent='Save at least one sprint to preview export content.';return;}
+  const headers=['Sprint','Date','SP','S1','S2','S3','S4','S5','Esc S1','Esc S2','Esc S3','Esc S4','Esc S5','Reopened','Closed','Composite Score'];
+  const rows=sprints.slice(-3).map(s=>{const c=Math.round(computeScore(s).composite);return [s.name,new Date(s.date).toLocaleDateString(),s.sp,s.s1,s.s2,s.s3,s.s4,s.s5,s.es1||0,s.es2||0,s.es3||0,s.es4||0,s.es5||0,s.reopened||0,s.closed||0,c].join(', ');});
+  el.innerHTML=`<div style="font-weight:600;margin-bottom:6px">${sprints.length} sprint(s) ready to export</div><div style="font-family:monospace;font-size:11px;color:var(--text-secondary)">${headers.join(', ')}<br>${rows.join('<br>')}</div>`;
+}
+
+function toCSV() {
+  const h=['Sprint','Date','SP','S1','S2','S3','S4','S5','RT1 (days)','RT2 (days)','RT3 (days)','RT4 (days)','RT5 (days)','Esc S1','Esc S2','Esc S3','Esc S4','Esc S5','Total Escaped','Reopened','Closed','Total Defects','Defect Density','Wtd Escape Rate %','Reopen Rate %','S1 Rate %','Avg Res Time (days)','Composite Score'];
+  const rows=sprints.map(s=>{
+    const {dd,er,rr,s1r,avgRt,composite,totalEscaped}=computeScore(s);
+    const total=totalDefects(s);
+    return [s.name,new Date(s.date).toLocaleDateString(),s.sp,s.s1,s.s2,s.s3,s.s4,s.s5,s.rt1||0,s.rt2||0,s.rt3||0,s.rt4||0,s.rt5||0,s.es1||0,s.es2||0,s.es3||0,s.es4||0,s.es5||0,totalEscaped,s.reopened||0,s.closed||0,total,dd.toFixed(3),(er*100).toFixed(2),(rr*100).toFixed(1),(s1r*100).toFixed(2),avgRt.toFixed(1),Math.round(composite)].join(',');
+  });
+  return [h.join(','),...rows].join('\n');
+}
+
+function exportCSV() {
+  if(!sprints.length){alert('No sprint data to export.');return;}
+  dl(toCSV(),'text/csv','quality-scorecard-'+Date.now()+'.csv');
+}
+function exportExcel() {
+  if(!sprints.length){alert('No sprint data to export.');return;}
+  dl(toCSV(),'application/vnd.ms-excel','quality-scorecard-'+Date.now()+'.xls');
+}
+function dl(content,type,filename) {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=filename; a.click();
+}
+
+function exportHTMLReport() {
+  if(!sprints.length){alert('No sprint data to export.');return;}
+  const rows=sprints.map(s=>{
+    const {dd,er,rr,composite}=computeScore(s),total=totalDefects(s),g=gradeLabel(Math.round(composite));
+    return `<tr><td>${s.name}</td><td>${new Date(s.date).toLocaleDateString()}</td><td>${s.sp}</td><td>${s.s1}</td><td>${s.s2}</td><td>${s.s3}</td><td>${s.s4}</td><td>${s.s5}</td><td>${total}</td><td>${dd.toFixed(2)}</td><td>${(er*100).toFixed(1)}%</td><td>${(rr*100).toFixed(1)}%</td><td style="font-weight:700">${Math.round(composite)} – ${g.label}</td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quality Scorecard Report</title><style>body{font-family:system-ui,sans-serif;padding:32px;color:#111}h1{font-size:22px;font-weight:600;margin-bottom:4px}p{color:#666;margin-bottom:24px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:.04em}td{padding:8px 10px;border-bottom:1px solid #f3f4f6}</style></head><body><h1>Software Quality Scorecard Report</h1><p>Generated ${new Date().toLocaleString()} — ${sprints.length} sprint(s)</p><table><thead><tr><th>Sprint</th><th>Date</th><th>SP</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>Total</th><th>Density</th><th>Escape%</th><th>Reopen%</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  dl(html,'text/html','quality-scorecard-report-'+Date.now()+'.html');
+}
+
+function renderLiveScore() {
+  const s={
+    sp:g('sp'),s1:g('s1'),s2:g('s2'),s3:g('s3'),s4:g('s4'),s5:g('s5'),
+    rt1:g('rt1'),rt2:g('rt2'),rt3:g('rt3'),rt4:g('rt4'),rt5:g('rt5'),
+    reopened:g('reopened'),closed:g('closed'),
+    es1:g('es1'),es2:g('es2'),es3:g('es3'),es4:g('es4'),es5:g('es5')
+  };
+  const total=totalDefects(s);
+  const totalEsc=[s.es1,s.es2,s.es3,s.es4,s.es5].reduce((a,v)=>a+v,0);
+  const anyData=total>0||s.sp>0||totalEsc>0||s.reopened>0||s.closed>0;
+  const emptyEl=document.getElementById('live-score-empty');
+  const contentEl=document.getElementById('live-score-content');
+  if(!anyData){emptyEl.style.display='';contentEl.style.display='none';return;}
+  emptyEl.style.display='none';contentEl.style.display='';
+
+  const SEV_WEIGHTS=[10,5,2,1,0.3];
+  const sp=s.sp||1, closed=(s.closed||0)+(s.reopened||0);
+  const dd=total/sp;
+  const weightedEsc=[s.es1,s.es2,s.es3,s.es4,s.es5].reduce((a,v,i)=>a+v*SEV_WEIGHTS[i],0);
+  const weightedTot=[s.s1,s.s2,s.s3,s.s4,s.s5].reduce((a,v,i)=>a+v*SEV_WEIGHTS[i],0);
+  const er=weightedTot>0?weightedEsc/weightedTot:0;
+  const rr=closed>0?(s.reopened||0)/closed:0;
+  const s1r=sp>0?(s.s1||0)/sp:0;
+  const avgRt=total>0?((s.s1||0)*(s.rt1||0)+(s.s2||0)*(s.rt2||0)+(s.s3||0)*(s.rt3||0)+(s.s4||0)*(s.rt4||0)+(s.s5||0)*(s.rt5||0))/total:0;
+
+  document.getElementById('lv-total').textContent=total;
+  document.getElementById('lv-dd').textContent=dd.toFixed(2);
+  document.getElementById('lv-er').textContent=(er*100).toFixed(1)+'%';
+  document.getElementById('lv-rr').textContent=(rr*100).toFixed(1)+'%';
+  document.getElementById('lv-s1r').textContent=(s1r*100).toFixed(2)+'%';
+  document.getElementById('lv-rt').textContent=avgRt.toFixed(1)+' d';
+
+  const {scores,composite,W,tw}=computeScore(s);
+  const c=Math.round(composite), gr=gradeLabel(c);
+  document.getElementById('lv-score-num').textContent=c;
+  document.getElementById('lv-score-grade').textContent=gr.label;
+  const ringColor=c>=90?'#639922':c>=75?'#378ADD':c>=60?'#EF9F27':'#E24B4A';
+  document.getElementById('lv-score-ring').style.borderColor=ringColor;
+
+  const metrics=[
+    {k:'defectDensity',raw:dd.toFixed(3)+' /SP'},
+    {k:'escapeRate',raw:(er*100).toFixed(1)+'%'},
+    {k:'reopenRate',raw:(rr*100).toFixed(1)+'%'},
+    {k:'s1Rate',raw:(s1r*100).toFixed(2)+'%'},
+    {k:'resTime',raw:avgRt.toFixed(1)+' days'}
+  ];
+  const sevMetrics=[
+    {k:'sevS1',raw:(s.s1||0)+' defects',color:'var(--s1)'},
+    {k:'sevS2',raw:(s.s2||0)+' defects',color:'var(--s2)'},
+    {k:'sevS3',raw:(s.s3||0)+' defects',color:'var(--s3)'},
+    {k:'sevS4',raw:(s.s4||0)+' defects',color:'var(--s4)'},
+    {k:'sevS5',raw:(s.s5||0)+' defects',color:'var(--s5)'}
+  ];
+  const sevSep=`<tr><td colspan="5" style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;background:var(--bg-secondary)">Severity defect weights</td></tr>`;
+  const rowHtml=(m,isSev)=>{
+    const sc=Math.round(scores[m.k]),wt=W[m.k],contrib=isSev?sc.toFixed(0):(sc*wt/tw).toFixed(1);
+    const barColor=sc>=75?'#639922':sc>=50?'#EF9F27':'#E24B4A';
+    const label=m.color?`<span style="color:${m.color};font-weight:500">${METRIC_LABELS[m.k].replace(' weight','')}</span>`:METRIC_LABELS[m.k];
+    const wtLabel=isSev?`${wt} pts`:`${wt}%`;
+    return `<tr><td>${label}</td><td style="color:var(--text-secondary)">${m.raw}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;height:6px;background:var(--bg-secondary);border-radius:3px;min-width:60px">
+          <div style="width:${sc}%;height:100%;background:${barColor};border-radius:3px"></div>
+        </div><span style="min-width:28px;font-size:12px">${sc}</span></div></td>
+      <td>${wtLabel}</td><td style="font-weight:600">${contrib}</td></tr>`;
+  };
+  document.getElementById('lv-score-breakdown').innerHTML=metrics.map(m=>rowHtml(m,false)).join('')+sevSep+sevMetrics.map(m=>rowHtml(m,true)).join('');
+
+  document.getElementById('lv-sev-body').innerHTML=SEV_KEYS.map((k,i)=>{
+    const count=s[k]||0,pct=total>0?((count/total)*100).toFixed(1):0;
+    const rt=s['rt'+(i+1)]||0,sla=slas[i];
+    const slaBadge=rt===0?'<span class="badge badge-blue">No data</span>':rt<=sla?'<span class="badge badge-green">On SLA</span>':'<span class="badge badge-red">Breached</span>';
+    return `<tr><td><span style="color:${SEV_COLORS[i]};font-weight:600">${SEV_LABELS[i]}</span></td><td>${count}</td><td>${pct}%</td><td>${rt}</td><td>${sla}</td><td>${slaBadge}</td></tr>`;
+  }).join('');
+}
+
+function scoreColor(sc) {
+  return sc>=88?'var(--green)':sc>=72?'var(--blue)':sc>=55?'var(--amber)':'var(--red)';
+}
+function scoreClass(sc) {
+  return sc>=88?'f-good':sc>=72?'f-eq':sc>=55?'f-warn':'f-bad';
+}
+function barColor(sc) {
+  return sc>=88?'#639922':sc>=72?'#185FA5':sc>=55?'#EF9F27':'#E24B4A';
+}
+function pct(v,d=1){ return (v*100).toFixed(d)+'%'; }
+function dp(v,d=3){ return v.toFixed(d); }
+function toggle(el){ el.closest('.log-block').classList.toggle('open'); }
+
+function logBlock(title, resultLabel, score, bodyHtml) {
+  const sc = Math.round(score);
+  const col = scoreColor(sc);
+  const bar = barColor(sc);
+  return `
+  <div class="log-block">
+    <div class="log-block-header" onclick="toggle(this)">
+      <span class="log-block-title">${title}</span>
+      <span class="log-block-result">${resultLabel}</span>
+      <span class="log-block-score" style="background:${col}22;color:${col}">Score: ${sc}</span>
+      <span class="log-chevron">▼</span>
+    </div>
+    <div class="log-block-body">
+      <div class="log-bar-wrap">
+        <div class="log-bar-track"><div class="log-bar-fill" style="width:${sc}%;background:${bar}"></div></div>
+        <span class="log-bar-label" style="color:${col}">${sc}/100</span>
+      </div>
+      ${bodyHtml}
+    </div>
+  </div>`;
+}
+
+function renderLogs() {
+  const empty = document.getElementById('logs-empty');
+  const content = document.getElementById('logs-content');
+  if (!sprints.length) { empty.style.display=''; content.style.display='none'; return; }
+  empty.style.display='none'; content.style.display='';
+
+  populateSprintSelect('log-sprint-select');
+  const sel = document.getElementById('log-sprint-select');
+  const s = sprints.find(x=>String(x.id)===String(sel.value)) || sprints[sprints.length-1];
+  if (!s) return; sel.value = s.id;
+
+  const sp    = s.sp||1;
+  const total = totalDefects(s);
+  const closed= (s.closed||0)+(s.reopened||0);
+  const dd    = total/sp;
+  const rr    = closed>0?(s.reopened||0)/closed:0;
+  const s1r   = sp>0?(s.s1||0)/sp:0;
+  const avgRt = total>0
+    ?((s.s1||0)*(s.rt1||0)+(s.s2||0)*(s.rt2||0)+(s.s3||0)*(s.rt3||0)+(s.s4||0)*(s.rt4||0)+(s.s5||0)*(s.rt5||0))/total
+    :0;
+
+  // Use computeScore — er here is the severity-weighted escape rate
+  const {scores, composite, W, tw, sevPtSum, sevRates, totalEscaped, weightedEscaped, weightedTotal} = computeScore(s);
+  const er = weightedTotal > 0 ? weightedEscaped / weightedTotal : 0;
+  const sevKeys = ['sevS1','sevS2','sevS3','sevS4','sevS5'];
+  const compositeKeys = ['defectDensity','escapeRate','reopenRate','s1Rate','resTime'];
+  const metricScores = { defectDensity:scores.defectDensity, escapeRate:scores.escapeRate, reopenRate:scores.reopenRate, s1Rate:scores.s1Rate, resTime:scores.resTime };
+  const sevKeyScores = { sevS1:scores.sevS1, sevS2:scores.sevS2, sevS3:scores.sevS3, sevS4:scores.sevS4, sevS5:scores.sevS5 };
+  const compositeScore = compositeKeys.reduce((a,k)=>a+metricScores[k]*(W[k]||0)/tw,0);
+  const sevGroupScore  = sevKeys.reduce((a,k)=>a+sevKeyScores[k]*(W[k]||0)/sevPtSum,0);
+  const sevInfluence   = Math.max(0, Math.min(100, W.sevInfluence ?? 25));
+  const {label:grade} = gradeLabel(Math.round(composite));
+
+  // Helper: render tier lookup table for a metric
+  function tierLookupHtml(key, value, unit='') {
+    const t = tiers[key];
+    const name = tierName(value, t);
+    const sc = Math.round(tierScore(value, t));
+    const rows = [
+      ['Excellent', `≤ ${t.excellent}`, '100 – 75', name==='Excellent'],
+      ['Good',      `≤ ${t.good}`,      '75 – 50',  name==='Good'],
+      ['Moderate',  `≤ ${t.moderate}`,  '50 – 25',  name==='Moderate'],
+      ['Poor',      `> ${t.moderate}`,  '25 – 0',   name==='Poor']
+    ];
+    const tierColors = {'Excellent':'var(--green)','Good':'var(--blue)','Moderate':'var(--amber)','Poor':'var(--red)'};
+    return `<div class="log-formula" style="padding:8px 12px">
+      <span class="f-label">Tier lookup — value: <strong>${typeof value==='number'?value.toFixed(4):value} ${unit}</strong></span>
+      <table style="width:100%;font-size:11px;margin-top:6px;border-collapse:collapse">
+        <tr style="color:var(--text-secondary)"><th style="text-align:left;padding:3px 8px 3px 0">Tier</th><th style="text-align:left;padding:3px 8px">Threshold</th><th style="text-align:left;padding:3px 8px">Score range</th><th style="text-align:left;padding:3px 8px">Match?</th></tr>
+        ${rows.map(([tier,thresh,range,match])=>`<tr style="background:${match?'var(--bg-secondary)':'transparent'}">
+          <td style="padding:3px 8px 3px 0;color:${tierColors[tier]};font-weight:${match?'600':'400'}">${tier}</td>
+          <td style="padding:3px 8px;font-family:var(--font-mono);font-size:11px">${thresh} ${unit}</td>
+          <td style="padding:3px 8px;font-family:var(--font-mono);font-size:11px">${range}</td>
+          <td style="padding:3px 8px">${match?`<strong style="color:${tierColors[tier]}">✓ ${sc}</strong>`:'—'}</td>
+        </tr>`).join('')}
+      </table>
+    </div>`;
+  }
+
+  let html = '';
+
+  // ── Section 1: Raw inputs ──────────────────────────────────────────
+  html += `<div class="log-section">
+  <div class="log-section-title">1 · Raw inputs</div>
+  <div class="log-block">
+    <div class="log-block-header" onclick="toggle(this)">
+      <span class="log-block-title">Sprint data</span>
+      <span class="log-block-result">${s.name}</span>
+      <span class="log-chevron">▼</span>
+    </div>
+    <div class="log-block-body">
+      <div class="log-formula">
+        <span class="f-label">Story points completed</span>
+        <span class="f-val">${s.sp||0} SP</span><br>
+        <span class="f-label">Total defects (S1+S2+S3+S4+S5)</span>
+        <span class="f-val">${s.s1||0} + ${s.s2||0} + ${s.s3||0} + ${s.s4||0} + ${s.s5||0} = ${total}</span><br>
+        <span class="f-label">Escaped defects by severity (post-release)</span>
+        <span class="f-val">S1: ${s.es1||0} · S2: ${s.es2||0} · S3: ${s.es3||0} · S4: ${s.es4||0} · S5: ${s.es5||0} · Total: ${totalEscaped}</span><br>
+        <span class="f-label">Reopened / Closed defects</span>
+        <span class="f-val">${s.reopened||0} reopened, ${s.closed||0} closed</span><br>
+        <span class="f-label">Avg resolution time per severity (days)</span>
+        <span class="f-val">S1: ${s.rt1||0}d · S2: ${s.rt2||0}d · S3: ${s.rt3||0}d · S4: ${s.rt4||0}d · S5: ${s.rt5||0}d</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+  // ── Section 2: Derived rates ───────────────────────────────────────
+  html += `<div class="log-section">
+  <div class="log-section-title">2 · Derived rates</div>`;
+
+  html += logBlock('Defect density', `${dp(dd)} defects/SP`, scores.defectDensity, `
+    <div class="log-formula">
+      <span class="f-label">Formula</span>
+      total defects ÷ story points<br>
+      <span class="f-eq">= ${total} ÷ ${sp} = <span class="f-val">${dp(dd)} defects/SP</span></span>
+    </div>
+    ${tierLookupHtml('dd', dd, '/SP')}`);
+
+  html += logBlock('Weighted escape rate', (er*100).toFixed(2)+'%', scores.escapeRate, `
+    <div class="log-formula">
+      <span class="f-label">Formula — severity-weighted escaped ÷ severity-weighted total defects</span>
+      Weights: S1=10× · S2=5× · S3=2× · S4=1× · S5=0.3×<br>
+      <span class="f-label">Weighted escaped = (${s.es1||0}×10)+(${s.es2||0}×5)+(${s.es3||0}×2)+(${s.es4||0}×1)+(${s.es5||0}×0.3)</span>
+      <span class="f-eq">= <span class="f-val">${weightedEscaped.toFixed(2)}</span></span><br>
+      <span class="f-label">Weighted total = (${s.s1||0}×10)+(${s.s2||0}×5)+(${s.s3||0}×2)+(${s.s4||0}×1)+(${s.s5||0}×0.3)</span>
+      <span class="f-eq">= <span class="f-val">${weightedTotal.toFixed(2)}</span></span><br>
+      <span class="f-label">Weighted escape rate = ${weightedEscaped.toFixed(2)} ÷ ${weightedTotal.toFixed(2)}</span>
+      <span class="f-eq">= <span class="f-val">${(er*100).toFixed(2)}%</span></span>
+      ${weightedTotal===0?'<br><span class="f-warn">(no defects — rate defaulted to 0%)</span>':''}
+      <br><span class="f-label">Raw escaped count: S1=${s.es1||0} · S2=${s.es2||0} · S3=${s.es3||0} · S4=${s.es4||0} · S5=${s.es5||0} · Total=${totalEscaped}</span>
+    </div>
+    ${tierLookupHtml('er', er, 'ratio')}`);
+
+  html += logBlock('Reopen rate', pct(rr), scores.reopenRate, `
+    <div class="log-formula">
+      <span class="f-label">Formula</span>
+      reopened ÷ (reopened + closed)<br>
+      <span class="f-eq">= ${s.reopened||0} ÷ ${closed} = <span class="f-val">${pct(rr)}</span></span>
+      ${closed===0?'<br><span class="f-warn">(no closed/reopened defects — rate defaulted to 0%)</span>':''}
+    </div>
+    ${tierLookupHtml('rr', rr, 'ratio')}`);
+
+  html += logBlock('S1 Showstopper rate', `${dp(s1r,3)}/SP`, scores.s1Rate, `
+    <div class="log-formula">
+      <span class="f-label">Formula</span>
+      S1 defects ÷ story points<br>
+      <span class="f-eq">= ${s.s1||0} ÷ ${sp} = <span class="f-val">${dp(s1r,4)}/SP</span></span>
+    </div>
+    ${tierLookupHtml('s1r', s1r, '/SP')}`);
+
+  const rtNumerator = SEV_KEYS.map((k,i)=>`(${s[k]||0}×${s['rt'+(i+1)]||0})`).join(' + ');
+  html += logBlock('Avg resolution time', `${dp(avgRt,2)} days`, scores.resTime, `
+    <div class="log-formula">
+      <span class="f-label">Formula — weighted average across severity counts</span>
+      (S1_count×S1_rt + S2×rt2 + S3×rt3 + S4×rt4 + S5×rt5) ÷ total defects<br>
+      <span class="f-eq">= (${rtNumerator}) ÷ ${total} = <span class="f-val">${dp(avgRt,2)} days</span></span>
+      ${total===0?'<br><span class="f-warn">(no defects — resolution time is 0)</span>':''}
+    </div>
+    <div class="log-note">SLA targets: S1 ${slas[0]}d · S2 ${slas[1]}d · S3 ${slas[2]}d · S4 ${slas[3]}d · S5 ${slas[4]}d</div>
+    ${tierLookupHtml('rt', avgRt, 'days')}`);
+
+  html += '</div>';
+
+  // ── Section 3: Severity sub-scores ────────────────────────────────
+  html += `<div class="log-section">
+  <div class="log-section-title">3 · Severity defect sub-scores</div>`;
+
+  const sevInfo = [
+    {name:'S1 Showstopper',col:'var(--s1)',tk:'sevS1'},
+    {name:'S2 Critical',   col:'var(--s2)',tk:'sevS2'},
+    {name:'S3 Major',      col:'var(--s3)',tk:'sevS3'},
+    {name:'S4 Medium',     col:'var(--s4)',tk:'sevS4'},
+    {name:'S5 Minor',      col:'var(--s5)',tk:'sevS5'}
+  ];
+
+  sevInfo.forEach((info,i)=>{
+    const count = s[SEV_KEYS[i]]||0;
+    const rate  = sevRates[i];
+    const sc    = scores[info.tk];
+    html += logBlock(
+      `<span style="color:${info.col}">${info.name}</span>`,
+      `${count} defects · ${dp(rate,3)}/SP`, sc,
+      `<div class="log-formula">
+        <span class="f-label">Rate: ${info.name} count ÷ story points</span>
+        = ${count} ÷ ${sp} = <span class="f-val">${dp(rate,4)}/SP</span>
+      </div>
+      ${tierLookupHtml(info.tk, rate, '/SP')}
+      <div class="log-note">Weight in severity group: ${W[info.tk]||0} pts out of ${sevPtSum} total = <strong>${dp((W[info.tk]||0)/sevPtSum*100,1)}%</strong> of sev group score</div>`
+    );
+  });
+
+  html += '</div>';
+
+  // ── Section 4: Composite metric weights ───────────────────────────
+  html += `<div class="log-section">
+  <div class="log-section-title">4 · Composite metric weighting</div>
+  <div class="log-block open">
+    <div class="log-block-header" onclick="toggle(this)">
+      <span class="log-block-title">Weighted composite of 5 primary metrics</span>
+      <span class="log-block-result">${dp(compositeScore,2)}</span>
+      <span class="log-chevron">▼</span>
+    </div>
+    <div class="log-block-body">
+      <div class="log-formula">
+        <span class="f-label">Formula: Σ (metric_score × weight%) ÷ total_weight%</span>`;
+
+  compositeKeys.forEach(k=>{
+    const sc  = metricScores[k];
+    const wt  = W[k]||0;
+    const contrib = sc*wt/tw;
+    html += `<br><span class="f-label">${METRIC_LABELS[k]}</span>
+      ${dp(sc,1)} × ${wt}% ÷ ${tw}% = <span class="f-val">${dp(contrib,2)}</span>`;
+  });
+
+  html += `<br><span class="f-label">Sum</span><span class="f-val">${dp(compositeScore,2)}</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+  // ── Section 5: Severity group blending ────────────────────────────
+  html += `<div class="log-section">
+  <div class="log-section-title">5 · Severity group blending</div>
+  <div class="log-block open">
+    <div class="log-block-header" onclick="toggle(this)">
+      <span class="log-block-title">Severity group score & blend influence</span>
+      <span class="log-block-result">Group score: ${dp(sevGroupScore,2)} · Influence: ${dp(sevInfluence,1)}%</span>
+      <span class="log-chevron">▼</span>
+    </div>
+    <div class="log-block-body">
+      <div class="log-formula">
+        <span class="f-label">Severity group score — weighted average of S1–S5 sub-scores</span>`;
+
+  sevKeys.forEach((k,i)=>{
+    const sc    = sevKeyScores[k];
+    const wt    = W[k]||0;
+    const share = wt/sevPtSum;
+    html += `<br>${sevInfo[i].name}: ${dp(sc,1)} × (${wt}pts ÷ ${sevPtSum}pts) = <span class="f-val">${dp(sc*share,2)}</span>`;
+  });
+
+  html += `<br><span class="f-label">Severity group score</span><span class="f-val">${dp(sevGroupScore,2)}</span>
+        <span class="f-label">Severity influence % — set directly in Weights tab</span>
+        <span class="f-val">${dp(sevInfluence,1)}%</span>
+        <span class="f-label" style="color:var(--text-secondary)">(configurable: Weights tab → Severity group influence)</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+  // ── Section 6: Final composite ────────────────────────────────────
+  const finalCol = scoreColor(Math.round(composite));
+  html += `<div class="log-section">
+  <div class="log-section-title">6 · Final composite score</div>
+  <div class="log-block open">
+    <div class="log-block-header" onclick="toggle(this)">
+      <span class="log-block-title">Blending composite + severity group</span>
+      <span class="log-block-result">${dp(composite,2)}</span>
+      <span class="log-chevron">▼</span>
+    </div>
+    <div class="log-block-body">
+      <div class="log-formula">
+        <span class="f-label">Formula: (compositeScore × (100 − sevInfluence%) + sevGroupScore × sevInfluence%) ÷ 100</span>
+        = (${dp(compositeScore,2)} × ${dp(100-sevInfluence,1)} + ${dp(sevGroupScore,2)} × ${dp(sevInfluence,1)}) ÷ 100<br>
+        = (${dp(compositeScore*(100-sevInfluence)/100,2)} + ${dp(sevGroupScore*sevInfluence/100,2)})<br>
+        = <span class="${scoreClass(composite)}" style="font-size:15px;font-weight:700">${dp(composite,2)} → rounded to ${Math.round(composite)}</span>
+      </div>
+    </div>
+  </div>
+  <div class="log-final">
+    <div class="log-final-score" style="color:${finalCol}">${Math.round(composite)}</div>
+    <div class="log-final-grade" style="margin-top:6px">
+      <span class="badge ${gradeLabel(Math.round(composite)).cls}" style="font-size:13px;padding:4px 14px">${grade}</span>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">
+      Excellent ≥75 · Good ≥50 · Moderate ≥25 · Poor &lt;25
+    </div>
+  </div>
+</div>`;
+
+  document.getElementById('log-body').innerHTML = html;
+}
+
+function copyLog() {
+  if (!sprints.length) return;
+  const sel = document.getElementById('log-sprint-select');
+  const s   = sprints.find(x=>String(x.id)===String(sel.value)) || sprints[sprints.length-1];
+  if (!s) return;
+  const {dd,er,rr,s1r,avgRt,scores,composite,totalEscaped,weightedEscaped,weightedTotal} = computeScore(s);
+  const W = weights;
+  const compositeKeys = ['defectDensity','escapeRate','reopenRate','s1Rate','resTime'];
+  const tw = compositeKeys.reduce((a,k)=>a+(W[k]||0),0)||100;
+  const lines = [
+    `=== Quality Scorecard Calculation Log ===`,
+    `Sprint: ${s.name}  |  Date: ${new Date(s.date).toLocaleDateString()}`,
+    ``,
+    `-- RAW INPUTS --`,
+    `Story points: ${s.sp||0}`,
+    `Defects:  S1=${s.s1||0}  S2=${s.s2||0}  S3=${s.s3||0}  S4=${s.s4||0}  S5=${s.s5||0}  Total=${totalDefects(s)}`,
+    `Escaped:  S1=${s.es1||0}  S2=${s.es2||0}  S3=${s.es3||0}  S4=${s.es4||0}  S5=${s.es5||0}  Total=${totalEscaped}`,
+    `Reopened: ${s.reopened||0}   Closed: ${s.closed||0}`,
+    `Resolution (days): S1=${s.rt1||0}  S2=${s.rt2||0}  S3=${s.rt3||0}  S4=${s.rt4||0}  S5=${s.rt5||0}`,
+    ``,
+    `-- DERIVED RATES --`,
+    `Defect density:         ${dd.toFixed(4)}/SP  → score ${Math.round(scores.defectDensity)}`,
+    `Wtd escape rate:        ${(er*100).toFixed(2)}%  (escaped wt=${weightedEscaped.toFixed(2)} ÷ total wt=${weightedTotal.toFixed(2)})  → score ${Math.round(scores.escapeRate)}`,
+    `Reopen rate:            ${(rr*100).toFixed(2)}%  → score ${Math.round(scores.reopenRate)}`,
+    `S1 rate:                ${(s1r*100).toFixed(4)}%  → score ${Math.round(scores.s1Rate)}`,
+    `Avg resolution:         ${avgRt.toFixed(2)} days  → score ${Math.round(scores.resTime)}`,
+    ``,
+    `-- SEVERITY SUB-SCORES --`,
+    `S1 Showstopper: ${Math.round(scores.sevS1)}   S2 Critical: ${Math.round(scores.sevS2)}   S3 Major: ${Math.round(scores.sevS3)}   S4 Medium: ${Math.round(scores.sevS4)}   S5 Minor: ${Math.round(scores.sevS5)}`,
+    ``,
+    `-- COMPOSITE --`,
+    `Weighted composite (primary metrics): ${compositeKeys.map(k=>`${METRIC_LABELS[k]}:${Math.round(scores[k])}×${W[k]||0}%`).join('  ')}`,
+    `Total weight: ${tw}%`,
+    `Composite primary score: ${(compositeKeys.reduce((a,k)=>a+scores[k]*(W[k]||0)/tw,0)).toFixed(2)}`,
+    `Final blended score: ${composite.toFixed(2)} → ${Math.round(composite)}`,
+    `Grade: ${gradeLabel(Math.round(composite)).label}`,
+  ];
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>{
+    const btn = document.querySelector('#tab-logs .btn');
+    if (btn) { const orig=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=orig,2000); }
+  });
+}
+
+load(); renderWeights(); renderTiers(); renderSLAs(); updateAll();
+</script>
+</body>
+</html>
