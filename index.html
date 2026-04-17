@@ -260,6 +260,27 @@
 
 <!-- DATA ENTRY -->
 <div id="tab-entry" class="panel active">
+
+  <!-- MINI SCORE BADGE — always visible at top while entering data -->
+  <div id="mini-score-bar" style="display:none;background:var(--bg-primary);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div id="mini-ring" style="width:64px;height:64px;border-radius:50%;border:4px solid var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+        <div id="mini-score-num" style="font-size:22px;font-weight:700;line-height:1">—</div>
+        <div id="mini-score-grade" style="font-size:10px;color:var(--text-secondary)">—</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Live score preview</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary)">
+          <span>Density: <strong id="mini-dd">—</strong></span>
+          <span>Reopen: <strong id="mini-rr">—</strong></span>
+          <span>S1 rate: <strong id="mini-s1r">—</strong></span>
+          <span>Avg res: <strong id="mini-rt">—</strong></span>
+        </div>
+      </div>
+    </div>
+    <div id="mini-sev-bars" style="display:flex;gap:8px;align-items:flex-end;height:40px;margin-left:auto"></div>
+  </div>
+
   <div class="grid-2" style="gap:20px">
     <div>
       <div class="section-title">Sprint info</div>
@@ -273,7 +294,7 @@
         <label>Closed defects</label>
         <input type="number" id="closed" placeholder="0" min="0" oninput="renderLiveScore()">
         <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
-          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Escaped defects by severity</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Escaped defects by severity (Prod)</div>
           <div class="grid-2" style="gap:8px">
             <div><label class="sev-s1" style="margin-top:0">S1 – Showstoppers escaped</label><input type="number" id="es1" placeholder="0" min="0" oninput="renderLiveScore()"></div>
             <div><label class="sev-s2" style="margin-top:0">S2 – Critical escaped</label><input type="number" id="es2" placeholder="0" min="0" oninput="renderLiveScore()"></div>
@@ -285,7 +306,7 @@
       </div>
     </div>
     <div>
-      <div class="section-title">Defects by severity</div>
+      <div class="section-title">Defects by severity (Dev to QA)</div>
       <div class="card">
         <div class="grid-2">
           <div><label class="sev-s1">S1 – Showstopper defects</label><input type="number" id="s1" placeholder="0" min="0" oninput="renderLiveScore()"></div>
@@ -544,28 +565,28 @@
 
 <script>
 const STORAGE_KEY = 'sqsc_sprints_v2';
-const WEIGHTS_KEY = 'sqsc_weights_v6';
+const WEIGHTS_KEY = 'sqsc_weights_v7';
 const SLA_KEY = 'sqsc_slas_v4';
-const TIERS_KEY = 'sqsc_tiers_v2';
+const TIERS_KEY = 'sqsc_tiers_v3';
 
 // Tier thresholds per metric — values at which each tier boundary sits.
 // Score mapping: Excellent=100→75, Good=75→50, Moderate=50→25, Poor=25→0
 // e.g. defect density: ≤0.10/SP → Excellent, ≤0.25 → Good, ≤0.50 → Moderate, >0.50 → Poor
 // All thresholds are upper bounds for that tier (lower is better for all metrics).
 const DEFAULT_TIERS = {
-  dd:    { excellent:0.10, good:0.25, moderate:0.50 },  // defects/SP
-  er:    { excellent:0.01, good:0.03, moderate:0.05 },  // escape rate 0–1
-  rr:    { excellent:0.05, good:0.15, moderate:0.30 },  // reopen rate 0–1
-  s1r:   { excellent:0.00, good:0.00, moderate:0.00 },  // S1s per SP
-  rt:    { excellent:1.0,  good:4.0,  moderate:10.0 },  // avg resolution days
-  sevS1: { excellent:0.00, good:0.00, moderate:0.00 },  // S1/SP
-  sevS2: { excellent:0.00, good:0.02, moderate:0.05 },  // S2/SP
-  sevS3: { excellent:0.05, good:0.10, moderate:0.20 },  // S3/SP
-  sevS4: { excellent:0.30, good:0.40, moderate:0.50 },  // S4/SP
-  sevS5: { excellent:0.40, good:0.50, moderate:1.00 }   // S5/SP
+  dd:    { excellent:0.005, good:0.01,  moderate:0.03  },  // defects/SP
+  er:    { excellent:0.01,  good:0.03,  moderate:0.05  },  // escape rate 0–1
+  rr:    { excellent:0.03,  good:0.07,  moderate:0.15  },  // reopen rate 0–1
+  s1r:   { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1s per SP
+  rt:    { excellent:1.0,   good:4.0,   moderate:7.0   },  // avg resolution days
+  sevS1: { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1/SP
+  sevS2: { excellent:0.00,  good:0.02,  moderate:0.05  },  // S2/SP
+  sevS3: { excellent:0.03,  good:0.05,  moderate:0.07  },  // S3/SP
+  sevS4: { excellent:0.10,  good:0.30,  moderate:0.50  },  // S4/SP
+  sevS5: { excellent:0.40,  good:0.50,  moderate:1.00  }   // S5/SP
 };
 
-const DEFAULT_WEIGHTS = { defectDensity:20, escapeRate:20, reopenRate:20, s1Rate:20, resTime:20, sevInfluence:50, sevS1:10, sevS2:7, sevS3:4, sevS4:2, sevS5:1 };
+const DEFAULT_WEIGHTS = { defectDensity:20, escapeRate:0, reopenRate:20, s1Rate:20, resTime:40, sevInfluence:50, sevS1:10, sevS2:7, sevS3:4, sevS4:2, sevS5:1 };
 const DEFAULT_SLAS = [0.5, 1, 3, 7, 14];
 const METRIC_LABELS = { defectDensity:'Defect density', escapeRate:'Escape rate', reopenRate:'Reopen rate', s1Rate:'S1 Showstopper rate', resTime:'Avg resolution time (days)', sevS1:'S1 Showstopper weight', sevS2:'S2 Critical weight', sevS3:'S3 Major weight', sevS4:'S4 Medium weight', sevS5:'S5 Minor weight' };
 const SEV_LABELS = ['S1 – Showstopper','S2 – Critical','S3 – Major','S4 – Medium','S5 – Minor'];
@@ -710,6 +731,7 @@ function clearForm() {
   document.getElementById('entry-msg').textContent='';
   document.getElementById('live-score-empty').style.display='';
   document.getElementById('live-score-content').style.display='none';
+  const mb=document.getElementById('mini-score-bar'); if(mb) mb.style.display='none';
 }
 
 function clearHistory() {
@@ -1041,6 +1063,42 @@ function renderLiveScore() {
   const rr=closed>0?(s.reopened||0)/closed:0;
   const s1r=sp>0?(s.s1||0)/sp:0;
   const avgRt=total>0?((s.s1||0)*(s.rt1||0)+(s.s2||0)*(s.rt2||0)+(s.s3||0)*(s.rt3||0)+(s.s4||0)*(s.rt4||0)+(s.s5||0)*(s.rt5||0))/total:0;
+
+  // Update mini score bar at top of Data Entry
+  const miniBar = document.getElementById('mini-score-bar');
+  if (miniBar) {
+    miniBar.style.display = anyData ? 'flex' : 'none';
+    if (anyData) {
+      const miniRing = document.getElementById('mini-ring');
+      const miniNum  = document.getElementById('mini-score-num');
+      const miniGrade= document.getElementById('mini-score-grade');
+      const {scores:sc2,composite:comp2,W:W2,tw:tw2}=computeScore(s);
+      const mc = Math.round(comp2), mg = gradeLabel(mc);
+      const mCol = mc>=75?'#639922':mc>=50?'#378ADD':mc>=25?'#EF9F27':'#E24B4A';
+      miniNum.textContent  = mc;
+      miniGrade.textContent= mg.label;
+      miniRing.style.borderColor = mCol;
+      miniNum.style.color  = mCol;
+      document.getElementById('mini-dd').textContent  = dd.toFixed(2)+'/SP';
+      document.getElementById('mini-rr').textContent  = (rr*100).toFixed(1)+'%';
+      document.getElementById('mini-s1r').textContent = (s1r*100).toFixed(2)+'%';
+      document.getElementById('mini-rt').textContent  = avgRt.toFixed(1)+'d';
+      // Severity mini bars
+      const sevBarColors = ['#E24B4A','#EF9F27','#639922','#378ADD','#888780'];
+      const sevBarKeys   = ['sevS1','sevS2','sevS3','sevS4','sevS5'];
+      const sevBarLabels = ['S1','S2','S3','S4','S5'];
+      document.getElementById('mini-sev-bars').innerHTML = sevBarKeys.map((k,i)=>{
+        const sv = Math.round(sc2[k]);
+        const bh = Math.max(4, Math.round(sv*0.36)); // max 36px height
+        const bc = sv>=75?'#639922':sv>=50?'#EF9F27':'#E24B4A';
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="font-size:9px;font-weight:600;color:${bc}">${sv}</div>
+          <div style="width:14px;background:${bc};border-radius:3px 3px 0 0;height:${bh}px;opacity:0.85"></div>
+          <div style="font-size:9px;color:var(--text-secondary)">${sevBarLabels[i]}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 
   document.getElementById('lv-total').textContent=total;
   document.getElementById('lv-dd').textContent=dd.toFixed(2);
