@@ -439,7 +439,7 @@
             <div class="score-num" id="score-num">—</div>
             <div class="score-grade" id="score-grade">—</div>
           </div>
-          <div style="font-size:12px;color:var(--text-secondary)">Composite score (0–100) · Excellent ≥75 · Good ≥50 · Moderate ≥25 · Poor &lt;25</div>
+          <div style="font-size:12px;color:var(--text-secondary)">Composite score (0–100) · <span id="grade-legend-text">Excellent ≥75 · Good ≥50 · Moderate ≥25 · Poor &lt;25</span></div>
         </div>
         <div style="overflow-x:auto">
           <table><thead><tr><th>Metric</th><th>Raw</th><th>Score (0–100)</th><th>Weight</th><th>Contribution</th></tr></thead>
@@ -517,9 +517,62 @@
       <div><label class="sev-s5">S5 Minor (days)</label><input type="number" id="sla5" value="14" min="0.1" step="0.1" onchange="saveSLAs()"></div>
     </div>
   </div>
-</div>
 
-<!-- EXPORT -->
+  <div class="section-title" style="margin-top:24px">Quality grade ranges</div>
+  <div class="card" style="max-width:560px">
+    <div class="info" style="margin-bottom:16px">
+      Set the minimum score required to achieve each quality grade. Scores are on a 0–100 scale.
+      Values must be in ascending order: Poor &lt; Moderate &lt; Good &lt; Excellent.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+      <div>
+        <label style="color:var(--red);font-weight:600;font-size:12px;margin-bottom:6px;display:block">Poor</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="grade-poor" class="weight-input" style="width:60px" min="0" max="99" step="1" onchange="updateGrade('poor',this.value)">
+          <span style="font-size:11px;color:var(--text-secondary)">min</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Score ≥ this</div>
+      </div>
+      <div>
+        <label style="color:var(--amber);font-weight:600;font-size:12px;margin-bottom:6px;display:block">Moderate</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="grade-moderate" class="weight-input" style="width:60px" min="1" max="99" step="1" onchange="updateGrade('moderate',this.value)">
+          <span style="font-size:11px;color:var(--text-secondary)">min</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Score ≥ this</div>
+      </div>
+      <div>
+        <label style="color:var(--blue);font-weight:600;font-size:12px;margin-bottom:6px;display:block">Good</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="grade-good" class="weight-input" style="width:60px" min="2" max="99" step="1" onchange="updateGrade('good',this.value)">
+          <span style="font-size:11px;color:var(--text-secondary)">min</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Score ≥ this</div>
+      </div>
+      <div>
+        <label style="color:var(--green);font-weight:600;font-size:12px;margin-bottom:6px;display:block">Excellent</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="grade-excellent" class="weight-input" style="width:60px" min="3" max="100" step="1" onchange="updateGrade('excellent',this.value)">
+          <span style="font-size:11px;color:var(--text-secondary)">min</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Score ≥ this</div>
+      </div>
+    </div>
+    <!-- Visual grade bar -->
+    <div style="margin:14px 0 8px">
+      <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;width:100%">
+        <div id="grade-bar-poor"     style="background:var(--red);   transition:width .2s"></div>
+        <div id="grade-bar-moderate" style="background:var(--amber);  transition:width .2s"></div>
+        <div id="grade-bar-good"     style="background:var(--blue);   transition:width .2s"></div>
+        <div id="grade-bar-excellent"style="background:var(--green);  transition:width .2s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-top:4px">
+        <span>0</span><span id="grade-bar-label-mod"></span><span id="grade-bar-label-good"></span><span id="grade-bar-label-exc"></span><span>100</span>
+      </div>
+    </div>
+    <div class="flex-end" style="margin-top:12px"><button class="btn" onclick="resetGrades()">Reset defaults</button></div>
+  </div>
+</div>
 <div id="tab-export" class="panel">
   <div class="section-title">Export options</div>
   <div class="grid-3" style="gap:16px">
@@ -565,9 +618,10 @@
 
 <script>
 const STORAGE_KEY = 'sqsc_sprints_v2';
-const WEIGHTS_KEY = 'sqsc_weights_v7';
-const SLA_KEY = 'sqsc_slas_v4';
-const TIERS_KEY = 'sqsc_tiers_v3';
+const WEIGHTS_KEY = 'sqsc_weights_v8';
+const SLA_KEY     = 'sqsc_slas_v4';
+const TIERS_KEY   = 'sqsc_tiers_v4';
+const GRADES_KEY  = 'sqsc_grades_v2';
 
 // Tier thresholds per metric — values at which each tier boundary sits.
 // Score mapping: Excellent=100→75, Good=75→50, Moderate=50→25, Poor=25→0
@@ -577,28 +631,30 @@ const DEFAULT_TIERS = {
   dd:    { excellent:0.005, good:0.01,  moderate:0.03  },  // defects/SP
   er:    { excellent:0.01,  good:0.03,  moderate:0.05  },  // escape rate 0–1
   rr:    { excellent:0.03,  good:0.07,  moderate:0.15  },  // reopen rate 0–1
-  s1r:   { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1s per SP
+  s1r:   { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1s per SP — zero tolerance
   rt:    { excellent:1.0,   good:4.0,   moderate:7.0   },  // avg resolution days
-  sevS1: { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1/SP
+  sevS1: { excellent:0.00,  good:0.00,  moderate:0.00  },  // S1/SP — zero tolerance
   sevS2: { excellent:0.00,  good:0.02,  moderate:0.05  },  // S2/SP
   sevS3: { excellent:0.03,  good:0.05,  moderate:0.07  },  // S3/SP
-  sevS4: { excellent:0.10,  good:0.30,  moderate:0.50  },  // S4/SP
-  sevS5: { excellent:0.40,  good:0.50,  moderate:1.00  }   // S5/SP
+  sevS4: { excellent:0.07,  good:0.10,  moderate:0.20  },  // S4/SP
+  sevS5: { excellent:0.20,  good:0.30,  moderate:0.50  }   // S5/SP
 };
 
 const DEFAULT_WEIGHTS = { defectDensity:20, escapeRate:0, reopenRate:20, s1Rate:20, resTime:40, sevInfluence:50, sevS1:10, sevS2:7, sevS3:4, sevS4:2, sevS5:1 };
 const DEFAULT_SLAS = [0.5, 1, 3, 7, 14];
+const DEFAULT_GRADES = { poor:0, moderate:40, good:70, excellent:90 };
 const METRIC_LABELS = { defectDensity:'Defect density', escapeRate:'Escape rate', reopenRate:'Reopen rate', s1Rate:'S1 Showstopper rate', resTime:'Avg resolution time (days)', sevS1:'S1 Showstopper weight', sevS2:'S2 Critical weight', sevS3:'S3 Major weight', sevS4:'S4 Medium weight', sevS5:'S5 Minor weight' };
 const SEV_LABELS = ['S1 – Showstopper','S2 – Critical','S3 – Major','S4 – Medium','S5 – Minor'];
 const SEV_KEYS = ['s1','s2','s3','s4','s5'];
 const SEV_COLORS = ['#E24B4A','#EF9F27','#639922','#378ADD','#888780'];
 
-let sprints=[], weights={...DEFAULT_WEIGHTS}, slas=[...DEFAULT_SLAS], tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)), trendChart=null;
+let sprints=[], weights={...DEFAULT_WEIGHTS}, slas=[...DEFAULT_SLAS], grades={...DEFAULT_GRADES}, tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)), trendChart=null;
 
 function load() {
   try { sprints=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]') } catch(e){sprints=[]}
   try { weights={...DEFAULT_WEIGHTS,...JSON.parse(localStorage.getItem(WEIGHTS_KEY)||'{}')} } catch(e){weights={...DEFAULT_WEIGHTS}}
   try { slas=JSON.parse(localStorage.getItem(SLA_KEY)||JSON.stringify(DEFAULT_SLAS)) } catch(e){slas=[...DEFAULT_SLAS]}
+  try { grades={...DEFAULT_GRADES,...JSON.parse(localStorage.getItem(GRADES_KEY)||'{}')} } catch(e){grades={...DEFAULT_GRADES}}
   try {
     const saved=JSON.parse(localStorage.getItem(TIERS_KEY)||'{}');
     Object.keys(DEFAULT_TIERS).forEach(k=>{ tiers[k]={...DEFAULT_TIERS[k],...(saved[k]||{})}; });
@@ -608,6 +664,7 @@ function load() {
 function save() { localStorage.setItem(STORAGE_KEY,JSON.stringify(sprints)); }
 function saveWeights() { localStorage.setItem(WEIGHTS_KEY,JSON.stringify(weights)); }
 function saveTiers() { localStorage.setItem(TIERS_KEY,JSON.stringify(tiers)); }
+function saveGrades() { localStorage.setItem(GRADES_KEY,JSON.stringify(grades)); }
 function saveSLAs() {
   slas=[1,2,3,4,5].map(i=>parseFloat(document.getElementById('sla'+i).value)||DEFAULT_SLAS[i-1]);
   localStorage.setItem(SLA_KEY,JSON.stringify(slas));
@@ -710,10 +767,10 @@ function computeScore(s) {
 }
 
 function gradeLabel(score) {
-  if (score >= 75) return { label:'Excellent', cls:'badge-green' };
-  if (score >= 50) return { label:'Good',      cls:'badge-blue'  };
-  if (score >= 25) return { label:'Moderate',  cls:'badge-amber' };
-  return                  { label:'Poor',      cls:'badge-red'   };
+  if (score >= grades.excellent)  return { label:'Excellent', cls:'badge-green' };
+  if (score >= grades.good)       return { label:'Good',      cls:'badge-blue'  };
+  if (score >= grades.moderate)   return { label:'Moderate',  cls:'badge-amber' };
+  return                                 { label:'Poor',      cls:'badge-red'   };
 }
 
 function addSprint() {
@@ -944,6 +1001,60 @@ function resetWeights() {
 }
 function resetTiers() {
   tiers=JSON.parse(JSON.stringify(DEFAULT_TIERS)); saveTiers(); renderTiers(); updateAll();
+}
+
+function renderGrades() {
+  const g = grades;
+  ['poor','moderate','good','excellent'].forEach(k => {
+    const el = document.getElementById('grade-'+k);
+    if (el) el.value = g[k];
+  });
+  // Update visual bar widths
+  const bp = document.getElementById('grade-bar-poor');
+  const bm = document.getElementById('grade-bar-moderate');
+  const bg = document.getElementById('grade-bar-good');
+  const be = document.getElementById('grade-bar-excellent');
+  if (bp) {
+    bp.style.width = g.moderate + '%';
+    bm.style.width = (g.good - g.moderate) + '%';
+    bg.style.width = (g.excellent - g.good) + '%';
+    be.style.width = (100 - g.excellent) + '%';
+  }
+  const lm = document.getElementById('grade-bar-label-mod');
+  const lg = document.getElementById('grade-bar-label-good');
+  const le = document.getElementById('grade-bar-label-exc');
+  if (lm) { lm.textContent = g.moderate; lg.textContent = g.good; le.textContent = g.excellent; }
+  updateGradeLegend();
+}
+function updateGrade(k, v) {
+  const val = parseInt(v);
+  if (isNaN(val) || val < 0 || val > 99) return;
+  grades[k] = val;
+  // Auto-enforce ordering: poor < moderate < good < excellent
+  // If a value steps on another, nudge the neighbours
+  if (k==='poor'     && grades.moderate <= grades.poor)     grades.moderate = grades.poor + 1;
+  if (k==='moderate' && grades.good     <= grades.moderate) grades.good     = grades.moderate + 1;
+  if (k==='good'     && grades.excellent<= grades.good)     grades.excellent = grades.good + 1;
+  if (k==='moderate' && grades.moderate <= grades.poor)     grades.poor     = grades.moderate - 1;
+  if (k==='good'     && grades.good     <= grades.moderate) grades.moderate = grades.good - 1;
+  if (k==='excellent'&& grades.excellent<= grades.good)     grades.good     = grades.excellent - 1;
+  // Clamp
+  grades.poor      = Math.max(0,  grades.poor);
+  grades.moderate  = Math.max(grades.poor+1, grades.moderate);
+  grades.good      = Math.max(grades.moderate+1, grades.good);
+  grades.excellent = Math.max(grades.good+1, Math.min(100, grades.excellent));
+  saveGrades();
+  renderGrades();
+  updateGradeLegend();
+  updateAll();
+}
+function resetGrades() {
+  grades={...DEFAULT_GRADES}; saveGrades(); renderGrades(); updateAll();
+}
+function updateGradeLegend() {
+  // Update the live legend text in the scorecard tab
+  const el = document.getElementById('grade-legend-text');
+  if (el) el.textContent = `Excellent ≥${grades.excellent} · Good ≥${grades.good} · Moderate ≥${grades.moderate} · Poor <${grades.moderate}`;
 }
 
 const TIER_META = [
@@ -1441,7 +1552,7 @@ function renderLogs() {
       <span class="badge ${gradeLabel(Math.round(composite)).cls}" style="font-size:13px;padding:4px 14px">${grade}</span>
     </div>
     <div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">
-      Excellent ≥75 · Good ≥50 · Moderate ≥25 · Poor &lt;25
+      Excellent ≥${grades.excellent} · Good ≥${grades.good} · Moderate ≥${grades.moderate} · Poor &lt;${grades.moderate}
     </div>
   </div>
 </div>`;
@@ -1492,7 +1603,7 @@ function copyLog() {
   });
 }
 
-load(); renderWeights(); renderTiers(); renderSLAs(); updateAll();
+load(); renderWeights(); renderTiers(); renderSLAs(); renderGrades(); updateGradeLegend(); updateAll();
 </script>
 </body>
 </html>
